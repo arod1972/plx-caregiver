@@ -2,7 +2,7 @@
 
 PrimaLux Care is a private family hub for coordinating care: calendar, tasks, medications, and updates.
 
-This repository starts with the Expo app shell (task 0.1): bottom navigation, design-system tokens, light and dark appearance, and adjustable text size.
+This repository is the Expo app. Care data stays on the device (task 0.2): SQLite is the store, changes are signed append-only packages, and family devices pair with a QR or JSON invite. There is no central care-data server.
 
 ```bash
 npm install
