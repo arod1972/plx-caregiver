@@ -2,7 +2,7 @@
 
 PrimaLux Care is a private family hub for coordinating care: calendar, tasks, medications, and updates.
 
-This repository is the Expo app. Care data stays on the device: SQLite is the store, changes are signed append-only packages, and family devices pair with a QR or JSON invite. The phone that starts a care circle assigns roles (Parent, Caregiver, Family, Viewer) and chooses who can view or change care details. The calendar is stored on the device and can remind you locally. Medication times are on the Meds tab and on the calendar, with a dosage, a refill date, a daily reminder, and a taken log. Tasks can be assigned in the circle, and the assignee is notified on their device. There is no central care-data server.
+This repository is the Expo app. Care data stays on the device: SQLite is the store, changes are signed append-only packages, and family devices pair with a QR or JSON invite. The phone that starts a care circle assigns roles (Parent, Caregiver, Family, Viewer) and chooses who can view or change care details. The calendar is stored on the device and can remind you locally. Medication times are on the Meds tab and on the calendar, with a dosage, a refill date, a daily reminder, and a taken log. Tasks can be assigned in the circle, and the assignee is notified on their device. Family updates stay in the circle and sync with a signed update bundle. There is no central care-data server.
 
 ```bash
 npm install
