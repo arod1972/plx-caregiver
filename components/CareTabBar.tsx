@@ -17,18 +17,19 @@ function TabIcon({ name, color, size }: { name: string; color: string; size: num
 }
 
 export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets }: BottomTabBarProps) {
-  const { colors, type, fontFamily, space } = useTheme();
+  const { colors, type, fontFamily, space, textSize } = useTheme();
   const bottom = Math.max(insets.bottom, space[2]);
+  const iconSize = textSize === "extra" ? 22 : 20;
 
   return (
-    <View style={{ backgroundColor: colors.canvas, alignItems: "center" }}>
+    <View style={{ backgroundColor: colors.bg, alignItems: "center" }}>
       <View
         accessibilityRole="tablist"
         style={{
           width: "100%",
           maxWidth: 480,
           flexDirection: "row",
-          backgroundColor: colors.surface,
+          backgroundColor: colors.bg,
           borderTopWidth: 1,
           borderTopColor: colors.line,
           paddingBottom: bottom,
@@ -39,7 +40,8 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = typeof options.title === "string" ? options.title : route.name;
-          const color = focused ? colors.accent : colors.muted;
+          const iconColor = focused ? colors.accent : colors.faint;
+          const labelColor = focused ? colors.ink : colors.faint;
 
           const onPress = () => {
             const event = emitter.emit({
@@ -62,7 +64,7 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
               style={({ pressed }) => [
                 {
                   flex: 1,
-                  minHeight: 52,
+                  minHeight: 48,
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 4,
@@ -71,18 +73,27 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
                 webPointer,
               ]}
             >
-              <TabIcon name={route.name} color={color} size={22} />
+              <TabIcon name={route.name} color={iconColor} size={iconSize} />
               <Text
                 style={{
-                  color,
+                  color: labelColor,
                   fontFamily,
                   fontSize: type.tab,
                   lineHeight: Math.round(type.tab * 1.3),
-                  fontWeight: "600",
+                  fontWeight: focused ? "600" : "400",
+                  letterSpacing: 0.1,
                 }}
               >
                 {label}
               </Text>
+              <View
+                style={{
+                  width: 16,
+                  height: 2,
+                  borderRadius: 1,
+                  backgroundColor: focused ? colors.accent : "transparent",
+                }}
+              />
             </Pressable>
           );
         })}

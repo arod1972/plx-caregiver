@@ -8,7 +8,7 @@ export function ReadAloud({ text }: { text: string }) {
   if (!parentMode || !text.trim()) return null;
   return (
     <ActionButton
-      label="Read this aloud"
+      label="Read aloud"
       emphasis="quiet"
       onPress={() => {
         Speech.stop();
