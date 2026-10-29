@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
+import { ActionButton, AppText, Card, EmptyState, Field, Masthead, Screen, useChrome } from "@/components/ui";
 import { useMeds, type MedicationItem } from "@/lib/use-meds";
 
 function timeLabel(time: string) {
@@ -27,7 +27,8 @@ function dateLabel(value: string) {
 
 export function MedsHome() {
   const meds = useMeds();
-  const { colors, parentMode, radius, space } = useTheme();
+  const { parentMode, space } = useTheme();
+  const chrome = useChrome("snug");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -53,22 +54,16 @@ export function MedsHome() {
 
   return (
     <Screen>
-      <Wordmark />
-      <AppText variant="title">Medications</AppText>
-      {parentMode ? null : <AppText tone="muted">Name, dosage, daily time, and whether today's dose was taken.</AppText>}
+      <Masthead title="Medications" lede={parentMode ? undefined : "Name, dose, and today's time."} />
       <ReadAloud text={spoken} />
-      {meds.phase === "loading" ? (
-        <Card>
-          <AppText tone="muted">Opening medications on this device.</AppText>
-        </Card>
-      ) : null}
+      {meds.phase === "loading" ? <AppText tone="muted">Opening medications.</AppText> : null}
       {meds.phase === "error" ? (
         <Card>
           <AppText>{meds.message}</AppText>
         </Card>
       ) : null}
       {meds.phase === "ready" && !meds.canView ? (
-        <EmptyState title="Not shared here" body="A parent has not shared medications with this device." />
+        <EmptyState title="Not shared" body="Medications aren’t on this device." icon="eye-off" />
       ) : null}
       {meds.phase === "ready" && meds.canView && draft ? (
         <Card style={{ gap: space[4] }}>
@@ -106,22 +101,12 @@ export function MedsHome() {
         />
       ) : null}
       {meds.phase === "ready" && meds.canView && !draft && meds.items.length === 0 ? (
-        <EmptyState title="No medications yet" body="Add a name, a dosage, and a time. The circle will see it here and on the calendar." />
+        <EmptyState title="No medications" body="Doses you add will appear here." icon="pill" />
       ) : null}
-      {meds.phase === "ready" && meds.canView && !draft
-        ? meds.items.map((item: MedicationItem) => (
-            <View
-              key={item.id}
-              style={{
-                minHeight: 48,
-                borderWidth: 1,
-                borderColor: colors.line,
-                borderRadius: radius.md,
-                backgroundColor: colors.surface,
-                padding: space[4],
-                gap: space[3],
-              }}
-            >
+      {meds.phase === "ready" && meds.canView && !draft && meds.items.length > 0 ? (
+        <View style={{ gap: space[4] }}>
+          {meds.items.map((item: MedicationItem) => (
+            <View key={item.id} style={[chrome, { gap: space[4] }]}>
               <Pressable
                 accessibilityRole={meds.canEdit ? "button" : "text"}
                 accessibilityLabel={`${item.name}, ${item.dosage}, every day at ${timeLabel(item.time)}`}
@@ -131,13 +116,13 @@ export function MedsHome() {
                   setDraft({ id: item.id, name: item.name, time: item.time, dosage: item.dosage, refillOn: item.refillOn });
                 }}
               >
-                <AppText variant="caption" tone="muted">
+                <AppText variant="caption" tone="faint">
                   Every day · {timeLabel(item.time)}
                 </AppText>
                 <AppText variant="heading">{item.name}</AppText>
                 {item.dosage ? <AppText tone="muted">{item.dosage}</AppText> : null}
-                {item.refillOn ? <AppText variant="caption" tone="muted">Refill {dateLabel(item.refillOn)}</AppText> : null}
-                <AppText variant="caption" tone="muted">
+                {item.refillOn ? <AppText variant="caption" tone="faint">Refill {dateLabel(item.refillOn)}</AppText> : null}
+                <AppText variant="caption" tone="faint">
                   {item.taken ? takenLabel(item.takenAt) : "Not taken yet"} · This week {item.weekTaken} of {item.weekDays}
                 </AppText>
               </Pressable>
@@ -145,16 +130,17 @@ export function MedsHome() {
                 <ActionButton label="Mark taken" onPress={() => meds.take(item.id).catch((error: unknown) => setFormError(error instanceof Error ? error.message : "The dose could not be marked."))} />
               ) : null}
             </View>
-          ))
-        : null}
+          ))}
+        </View>
+      ) : null}
       {formError && !draft ? <AppText>{formError}</AppText> : null}
       {meds.notice ? (
-        <AppText variant="caption" tone="muted">
+        <AppText variant="caption" tone="faint">
           {meds.notice}
         </AppText>
       ) : null}
-      <AppText variant="caption" tone="muted">
-        Private to your care circle.
+      <AppText variant="caption" tone="faint">
+        Private to this circle.
       </AppText>
     </Screen>
   );

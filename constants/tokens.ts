@@ -14,9 +14,9 @@ export const textSizeLabel: Record<TextSize, string> = {
 };
 
 const typeScale = {
-  standard: { title: 26, heading: 20, body: 17, label: 15, caption: 13, tab: 12 },
-  large: { title: 30, heading: 23, body: 20, label: 17, caption: 15, tab: 13 },
-  extra: { title: 34, heading: 26, body: 22, label: 18, caption: 16, tab: 14 },
+  standard: { title: 28, heading: 20, body: 17, label: 15, caption: 13, tab: 12 },
+  large: { title: 30, heading: 22, body: 19, label: 16, caption: 14, tab: 13 },
+  extra: { title: 32, heading: 24, body: 20, label: 17, caption: 15, tab: 13 },
 } as const;
 
 export const tokens = {
@@ -26,24 +26,28 @@ export const tokens = {
       bg: "#F4F1EB",
       surface: "#FBF9F6",
       ink: "#24302B",
-      muted: "#4E5A54",
-      faint: "#6E7872",
-      line: "#E3DCD2",
+      muted: "#6A6158",
+      faint: "#746C64",
+      line: "#E6DFD6",
       accent: "#3D6B5A",
       accentInk: "#F7FBF8",
       accentSoft: "#E4EFE8",
+      metal: "#A4845A",
+      sheen: "#E4D3A4",
     },
     dark: {
       canvas: "#101412",
       bg: "#171D1A",
       surface: "#1E2622",
       ink: "#F3EFE8",
-      muted: "#C5D0C9",
-      faint: "#8E9A93",
-      line: "#33403A",
+      muted: "#B7AFA6",
+      faint: "#9C948B",
+      line: "#2C3832",
       accent: "#9DCFBA",
       accentInk: "#14211C",
       accentSoft: "#243830",
+      metal: "#A89068",
+      sheen: "#6E5A3A",
     },
   },
   space: {

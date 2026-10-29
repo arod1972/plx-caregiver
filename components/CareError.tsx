@@ -15,8 +15,10 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
       }}
     >
       <View style={{ width: "100%", maxWidth: 420, gap: 16 }}>
-        <Text style={{ color: colors.ink, fontSize: 26, fontWeight: "600" }}>Something went wrong</Text>
-        <Text style={{ color: colors.muted, fontSize: 17, lineHeight: 24 }}>{error.message || "This screen could not be opened."}</Text>
+        <Text style={{ color: colors.ink, fontSize: 28, lineHeight: 32, fontWeight: "700", letterSpacing: -0.6 }}>
+          Something went wrong
+        </Text>
+        <Text style={{ color: colors.muted, fontSize: 17, lineHeight: 26 }}>{error.message || "This screen could not be opened."}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Try again"
@@ -24,14 +26,16 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
             void retry();
           }}
           style={{
-            minHeight: 48,
+            minHeight: 44,
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: 12,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: colors.sheen,
             backgroundColor: colors.accent,
           }}
         >
-          <Text style={{ color: colors.accentInk, fontSize: 17, fontWeight: "600" }}>Try again</Text>
+          <Text style={{ color: colors.accentInk, fontSize: 15, fontWeight: "600", letterSpacing: 0.15 }}>Try again</Text>
         </Pressable>
       </View>
     </View>

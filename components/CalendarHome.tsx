@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
+import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Masthead, Screen, SectionLabel, useChrome } from "@/components/ui";
 import { localStarts } from "@/lib/mesh/calendar.mjs";
 import { useCalendar, type CalendarItem } from "@/lib/use-calendar";
 
@@ -65,7 +65,8 @@ type Draft = {
 
 export function CalendarHome() {
   const calendar = useCalendar();
-  const { colors, parentMode, radius, space, type, fontFamily } = useTheme();
+  const { parentMode, space } = useTheme();
+  const chrome = useChrome("snug");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -111,25 +112,20 @@ export function CalendarHome() {
 
   return (
     <Screen>
-      <Wordmark />
-      <AppText variant="label" tone="muted">
-        {dayLabel(Date.now())}
-      </AppText>
-      <AppText variant="title">Calendar</AppText>
-      {parentMode ? null : <AppText tone="muted">Appointments, visits, and important dates for the next 60 days.</AppText>}
+      <Masthead
+        date={dayLabel(Date.now())}
+        title="Calendar"
+        lede={parentMode ? undefined : "Appointments, visits, and dates."}
+      />
       <ReadAloud text={spoken} />
-      {calendar.phase === "loading" ? (
-        <Card>
-          <AppText tone="muted">Opening the calendar on this device.</AppText>
-        </Card>
-      ) : null}
+      {calendar.phase === "loading" ? <AppText tone="muted">Opening the calendar.</AppText> : null}
       {calendar.phase === "error" ? (
         <Card>
           <AppText>{calendar.message}</AppText>
         </Card>
       ) : null}
       {calendar.phase === "ready" && !calendar.canView ? (
-        <EmptyState title="Not shared here" body="A parent has not shared the calendar with this device." />
+        <EmptyState title="Not shared" body="This calendar isn’t on this device." icon="eye-off" />
       ) : null}
       {calendar.phase === "ready" && calendar.canView && draft ? (
         <Card style={{ gap: space[4] }}>
@@ -165,51 +161,41 @@ export function CalendarHome() {
         <ActionButton label="Add an event" onPress={openNew} />
       ) : null}
       {calendar.phase === "ready" && calendar.canView && !draft && calendar.items.length === 0 ? (
-        <EmptyState title="A clear day" body="Visits and appointments will gather here for everyone you trust with them." />
+        <EmptyState title="Nothing scheduled" body="Appointments and visits will appear here." icon="calendar" />
       ) : null}
-      {calendar.phase === "ready" && calendar.canView && !draft
-        ? calendar.items.map((item, index) => {
+      {calendar.phase === "ready" && calendar.canView && !draft && calendar.items.length > 0 ? (
+        <View style={{ gap: space[4] }}>
+          {calendar.items.map((item, index) => {
             const showDay = index === 0 || dayKey(item.occursAt) !== dayKey(calendar.items[index - 1].occursAt);
             return (
-              <View key={`${item.id}-${item.occursAt}`} style={{ gap: space[3] }}>
-                {showDay ? <AppText variant="label">{dayLabel(item.occursAt)}</AppText> : null}
+              <View key={`${item.id}-${item.occursAt}`} style={{ gap: space[2] }}>
+                {showDay ? <SectionLabel>{dayLabel(item.occursAt)}</SectionLabel> : null}
                 <Pressable
                   accessibilityRole={calendar.canEdit && item.kind !== "med" ? "button" : "text"}
                   accessibilityLabel={`${item.title}, ${kindLabel(item.kind)}`}
                   disabled={!calendar.canEdit || item.kind === "med"}
                   onPress={() => openEdit(item)}
-                  style={{
-                    minHeight: 48,
-                    borderWidth: 1,
-                    borderColor: colors.line,
-                    borderRadius: radius.md,
-                    backgroundColor: colors.surface,
-                    padding: space[4],
-                    gap: space[1],
-                  }}
+                  style={({ pressed }) => [chrome, pressed && calendar.canEdit && item.kind !== "med" ? { opacity: 0.92 } : null]}
                 >
-                  <AppText variant="caption" tone="muted">
+                  <AppText variant="caption" tone="faint">
                     {timeLabel(item)} · {kindLabel(item.kind)}
                     {item.repeat === "weekly" ? " · Every week" : item.repeat === "monthly" ? " · Every month" : item.repeat === "daily" ? " · Every day" : ""}
                   </AppText>
                   <AppText variant="heading">{item.title}</AppText>
-                  {item.notes ? (
-                    <AppText tone="muted" style={{ fontFamily, fontSize: type.body }}>
-                      {item.notes}
-                    </AppText>
-                  ) : null}
+                  {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
                 </Pressable>
               </View>
             );
-          })
-        : null}
+          })}
+        </View>
+      ) : null}
       {calendar.notice ? (
-        <AppText variant="caption" tone="muted">
+        <AppText variant="caption" tone="faint">
           {calendar.notice}
         </AppText>
       ) : null}
-      <AppText variant="caption" tone="muted">
-        Private to your care circle.
+      <AppText variant="caption" tone="faint">
+        Private to this circle.
       </AppText>
     </Screen>
   );

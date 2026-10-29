@@ -73,10 +73,10 @@ export function ThisDevice() {
   };
 
   return (
-    <View style={{ gap: space[4] }}>
+    <View style={{ gap: space[6] }}>
       <Card style={{ gap: space[4] }}>
         <AppText variant="heading">Care circle</AppText>
-        <AppText tone="muted">Created on this device. People you invite share only what you send them.</AppText>
+        <AppText tone="muted">People you invite share only what you send.</AppText>
         <Field label="Circle name" value={circleName} onChangeText={setCircleName} onBlur={saveCircle} editable={ready.primary} />
         {ready.primary ? (
           <ChoiceGroup label="Your role" value={ready.role} onChange={(role) => care.saveRole(ready.deviceId, role)} options={roles} />
@@ -120,7 +120,7 @@ export function ThisDevice() {
       />
       <Card style={{ gap: space[4] }}>
         <AppText variant="heading">This device</AppText>
-        <AppText tone="muted">A private name for this phone or computer. Care records stay here until you pair.</AppText>
+        <AppText tone="muted">A name for this phone. Records stay here until you pair.</AppText>
         <Field label="Device name" value={name} onChangeText={setName} onBlur={saveName} />
         <AppText variant="caption" tone="muted">
           {care.notice}
@@ -128,7 +128,7 @@ export function ThisDevice() {
       </Card>
       <Card style={{ gap: space[4] }}>
         <AppText variant="heading">Pair a family device</AppText>
-        <AppText tone="muted">Choose their role, create an invite, then they paste it on their Profile. No account and no server.</AppText>
+        <AppText tone="muted">Create an invite, then paste it on their Profile.</AppText>
         <ChoiceGroup label="Role on the invite" value={inviteRole} onChange={setInviteRole} options={roles} />
         <ActionButton label="Create invite" onPress={() => care.makeInvite(inviteRole).catch(() => setFormError("The invite could not be created."))} />
         {care.inviteText ? (

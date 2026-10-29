@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
+import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Masthead, Screen, SectionLabel, useChrome } from "@/components/ui";
 import { useTasks, type TaskItem } from "@/lib/use-tasks";
 
 type Draft = { id?: string; title: string; notes: string; assignee: string; dueOn: string; status?: TaskItem["status"] };
@@ -21,7 +21,8 @@ function doneLabel(iso: string) {
 
 export function TasksHome() {
   const tasks = useTasks();
-  const { colors, parentMode, radius, space } = useTheme();
+  const { parentMode, space } = useTheme();
+  const chrome = useChrome("snug");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const openItems = tasks.items.filter((item) => item.status !== "done");
@@ -51,34 +52,18 @@ export function TasksHome() {
               })
               .join(" ")}`;
 
-  const card = {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    padding: space[4],
-    gap: space[3],
-  };
-
   return (
     <Screen>
-      <Wordmark />
-      <AppText variant="title">Tasks</AppText>
-      {parentMode ? null : <AppText tone="muted">Errands, rides, meals, and follow-ups, with a clear owner.</AppText>}
+      <Masthead title="Tasks" lede={parentMode ? undefined : "Errands, rides, and follow-ups."} />
       <ReadAloud text={spoken} />
-      {tasks.phase === "loading" ? (
-        <Card>
-          <AppText tone="muted">Opening tasks on this device.</AppText>
-        </Card>
-      ) : null}
+      {tasks.phase === "loading" ? <AppText tone="muted">Opening tasks.</AppText> : null}
       {tasks.phase === "error" ? (
         <Card>
           <AppText>{tasks.message}</AppText>
         </Card>
       ) : null}
       {tasks.phase === "ready" && !tasks.canView ? (
-        <EmptyState title="Not shared here" body="A parent has not shared tasks with this device." />
+        <EmptyState title="Not shared" body="Tasks aren’t on this device." icon="eye-off" />
       ) : null}
       {tasks.phase === "ready" && tasks.canView && draft ? (
         <Card style={{ gap: space[4] }}>
@@ -115,38 +100,42 @@ export function TasksHome() {
         />
       ) : null}
       {tasks.phase === "ready" && tasks.canView && !draft && openItems.length === 0 ? (
-        <EmptyState title="No open tasks" body="When something needs doing, it will show up here with who is taking it." />
+        <EmptyState title="Nothing to do" body="Errands and follow-ups will appear here." icon="check-square" />
       ) : null}
-      {tasks.phase === "ready" && tasks.canView && !draft
-        ? openItems.map((item) => {
+      {tasks.phase === "ready" && tasks.canView && !draft && openItems.length > 0 ? (
+        <View style={{ gap: space[4] }}>
+          {openItems.map((item) => {
             const owner = item.assignee === tasks.me ? "Assigned to you" : item.assigneeName ? `Assigned to ${item.assigneeName}` : "Open";
             const due = item.dueOn ? `Due ${dayLabel(item.dueOn)}` : "";
             const canComplete = tasks.canEdit || item.assignee === tasks.me;
             return (
-              <View key={item.id} style={card}>
+              <View key={item.id} style={[chrome, { gap: space[4] }]}>
                 <Pressable accessibilityRole={tasks.canEdit ? "button" : "text"} accessibilityLabel={item.title} disabled={!tasks.canEdit} onPress={() => setDraft({ id: item.id, title: item.title, notes: item.notes, assignee: item.assignee, dueOn: item.dueOn, status: item.status })}>
-                  <AppText variant="caption" tone="muted">{[owner, due].filter(Boolean).join(" · ")}</AppText>
+                  <AppText variant="caption" tone="faint">{[owner, due].filter(Boolean).join(" · ")}</AppText>
                   <AppText variant="heading">{item.title}</AppText>
                   {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
                 </Pressable>
                 {canComplete ? <ActionButton label="Mark done" onPress={() => tasks.complete(item.id).catch(() => undefined)} /> : null}
               </View>
             );
-          })
-        : null}
-      {tasks.phase === "ready" && tasks.canView && !draft && doneItems.length > 0 ? <AppText variant="label">Done</AppText> : null}
-      {tasks.phase === "ready" && tasks.canView && !draft
-        ? doneItems.map((item) => (
-            <View key={item.id} style={card}>
-              <AppText variant="caption" tone="muted">{doneLabel(item.completedAt)}{item.assigneeName ? ` · ${item.assigneeName}` : ""}</AppText>
+          })}
+        </View>
+      ) : null}
+      {tasks.phase === "ready" && tasks.canView && !draft && doneItems.length > 0 ? (
+        <View style={{ gap: space[4] }}>
+          <SectionLabel>Done</SectionLabel>
+          {doneItems.map((item) => (
+            <View key={item.id} style={[chrome, { gap: space[4] }]}>
+              <AppText variant="caption" tone="faint">{doneLabel(item.completedAt)}{item.assigneeName ? ` · ${item.assigneeName}` : ""}</AppText>
               <AppText variant="heading">{item.title}</AppText>
               {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
               {tasks.canEdit ? <ActionButton label="Reopen" emphasis="quiet" onPress={() => tasks.reopen(item.id).catch(() => undefined)} /> : null}
             </View>
-          ))
-        : null}
-      {tasks.notice ? <AppText variant="caption" tone="muted">{tasks.notice}</AppText> : null}
-      <AppText variant="caption" tone="muted">Private to your care circle.</AppText>
+          ))}
+        </View>
+      ) : null}
+      {tasks.notice ? <AppText variant="caption" tone="faint">{tasks.notice}</AppText> : null}
+      <AppText variant="caption" tone="faint">Private to this circle.</AppText>
     </Screen>
   );
 }

@@ -54,7 +54,7 @@ export function SharingCard({
       <AppText variant="heading">Sharing</AppText>
       {canManage ? (
         <>
-          <AppText tone="muted">Who can see care details, and who can change them. Copy updates so the other device matches.</AppText>
+          <AppText tone="muted">Who can see this, and who can change it.</AppText>
           {roles.map((role) => (
             <ChoiceGroup
               key={role.value}

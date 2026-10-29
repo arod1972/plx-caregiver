@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
+import { ActionButton, AppText, Card, EmptyState, Field, Masthead, Screen, useChrome } from "@/components/ui";
 import { usePosts, type PostItem } from "@/lib/use-posts";
 
 function whenLabel(iso: string) {
@@ -13,7 +13,8 @@ function whenLabel(iso: string) {
 
 export function UpdatesHome() {
   const posts = usePosts();
-  const { colors, parentMode, radius, space } = useTheme();
+  const { parentMode, space } = useTheme();
+  const chrome = useChrome("snug");
   const [draft, setDraft] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -38,22 +39,16 @@ export function UpdatesHome() {
 
   return (
     <Screen>
-      <Wordmark />
-      <AppText variant="title">Updates</AppText>
-      {parentMode ? null : <AppText tone="muted">Care notes for the people allowed to see them.</AppText>}
+      <Masthead title="Updates" lede={parentMode ? undefined : "Notes for this circle."} />
       <ReadAloud text={spoken} />
-      {posts.phase === "loading" ? (
-        <Card>
-          <AppText tone="muted">Opening updates on this device.</AppText>
-        </Card>
-      ) : null}
+      {posts.phase === "loading" ? <AppText tone="muted">Opening updates.</AppText> : null}
       {posts.phase === "error" ? (
         <Card>
           <AppText>{posts.message}</AppText>
         </Card>
       ) : null}
       {posts.phase === "ready" && !posts.canRead ? (
-        <EmptyState title="Not shared here" body="A parent has not shared updates with this device." />
+        <EmptyState title="Not shared" body="Updates aren’t on this device." icon="eye-off" />
       ) : null}
       {posts.phase === "ready" && posts.canRead ? (
         <Card style={{ gap: space[4] }}>
@@ -63,31 +58,23 @@ export function UpdatesHome() {
         </Card>
       ) : null}
       {posts.phase === "ready" && posts.canRead && posts.items.length === 0 ? (
-        <EmptyState title="No updates yet" body="Family messages stay in this circle. They are not posted anywhere else." />
+        <EmptyState title="No notes yet" body="Family updates will appear here." icon="message-circle" />
       ) : null}
-      {posts.phase === "ready" && posts.canRead
-        ? posts.items.map((item: PostItem) => (
-            <View
-              key={item.id}
-              style={{
-                borderWidth: 1,
-                borderColor: colors.line,
-                borderRadius: radius.md,
-                backgroundColor: colors.surface,
-                padding: space[4],
-                gap: space[2],
-              }}
-            >
-              <AppText variant="caption" tone="muted">
+      {posts.phase === "ready" && posts.canRead && posts.items.length > 0 ? (
+        <View style={{ gap: space[4] }}>
+          {posts.items.map((item: PostItem) => (
+            <View key={item.id} style={chrome}>
+              <AppText variant="caption" tone="faint">
                 {item.authorId === posts.me ? "You" : item.authorName}
                 {item.sentAt ? ` · ${whenLabel(item.sentAt)}` : ""}
               </AppText>
               <AppText>{item.body}</AppText>
             </View>
-          ))
-        : null}
-      {posts.notice ? <AppText variant="caption" tone="muted">{posts.notice}</AppText> : null}
-      <AppText variant="caption" tone="muted">Private to your care circle.</AppText>
+          ))}
+        </View>
+      ) : null}
+      {posts.notice ? <AppText variant="caption" tone="faint">{posts.notice}</AppText> : null}
+      <AppText variant="caption" tone="faint">Private to this circle.</AppText>
     </Screen>
   );
 }
