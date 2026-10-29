@@ -1,3 +1,9 @@
+declare module "@/lib/mesh/seal.mjs" {
+  export function randomVaultKey(): string;
+  export function sealJson(value: unknown, keyHex: string): { v: 1; iv: string; data: string };
+  export function openJson(sealed: { v?: number; iv?: string; data?: string }, keyHex: string): unknown;
+}
+
 declare module "@/lib/mesh/repository.mjs" {
   export type CareRole = "parent" | "caregiver" | "family" | "viewer";
   export type PublicDevice = {

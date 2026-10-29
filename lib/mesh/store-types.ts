@@ -30,6 +30,15 @@ export type InviteRow = {
   circleId: string;
 };
 
+export type AuditEntry = {
+  id: string;
+  action: string;
+  collection: string;
+  deviceId: string;
+  at: string;
+  recordId: string;
+};
+
 export type Store = {
   getMeta(key: string): Promise<string | null>;
   setMeta(key: string, value: string): Promise<void>;
@@ -46,4 +55,6 @@ export type Store = {
   listPeers(): Promise<PeerRow[]>;
   putInvite(row: InviteRow): Promise<void>;
   getInvite(id: string): Promise<InviteRow | null>;
+  appendAudit(entry: AuditEntry): Promise<void>;
+  listAudit(): Promise<AuditEntry[]>;
 };
