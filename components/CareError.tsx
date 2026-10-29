@@ -27,7 +27,7 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
             minHeight: 48,
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: 12,
+            borderRadius: 14,
             backgroundColor: colors.accent,
           }}
         >

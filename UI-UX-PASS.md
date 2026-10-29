@@ -67,4 +67,10 @@ Calm, trustworthy, warm-professional, modern, and pleasant. Refined restraint wi
 
 ---
 
+## Status
+
+Implemented in tracker row 8.2. Light, dark, and parent-mode screens are in `screenshots/8.2`. The header stays the placeholder “PrimaLux Care”. No new features.
+
+---
+
 **Note:** Naming exercise (app name research to avoid crowded-field duplicates) will follow after this polish pass is defined. Current header “PRIMALUX CARE” is a placeholder tied to the company brand.

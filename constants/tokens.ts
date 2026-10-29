@@ -14,9 +14,9 @@ export const textSizeLabel: Record<TextSize, string> = {
 };
 
 const typeScale = {
-  standard: { title: 26, heading: 20, body: 17, label: 15, caption: 13, tab: 12 },
-  large: { title: 30, heading: 23, body: 20, label: 17, caption: 15, tab: 13 },
-  extra: { title: 34, heading: 26, body: 22, label: 18, caption: 16, tab: 14 },
+  standard: { title: 28, heading: 20, body: 17, label: 15, caption: 13, tab: 12 },
+  large: { title: 30, heading: 22, body: 19, label: 16, caption: 14, tab: 12 },
+  extra: { title: 32, heading: 24, body: 20, label: 17, caption: 15, tab: 13 },
 } as const;
 
 export const tokens = {
@@ -26,24 +26,28 @@ export const tokens = {
       bg: "#F4F1EB",
       surface: "#FBF9F6",
       ink: "#24302B",
-      muted: "#4E5A54",
-      faint: "#6E7872",
-      line: "#E3DCD2",
+      muted: "#5E6A64",
+      faint: "#646E68",
+      line: "#E4DDD4",
       accent: "#3D6B5A",
       accentInk: "#F7FBF8",
       accentSoft: "#E4EFE8",
+      metal: "#B7A88C",
+      metalBright: "#E4D7C0",
     },
     dark: {
       canvas: "#101412",
       bg: "#171D1A",
       surface: "#1E2622",
       ink: "#F3EFE8",
-      muted: "#C5D0C9",
-      faint: "#8E9A93",
-      line: "#33403A",
+      muted: "#9AABA3",
+      faint: "#7D8B84",
+      line: "#2E3B35",
       accent: "#9DCFBA",
       accentInk: "#14211C",
       accentSoft: "#243830",
+      metal: "#C4B48E",
+      metalBright: "#E6D7B8",
     },
   },
   space: {
@@ -59,8 +63,9 @@ export const tokens = {
   },
   radius: {
     sm: 8,
-    md: 12,
-    lg: 16,
+    md: 14,
+    lg: 20,
+    xl: 28,
   },
   typeScale,
 } as const;

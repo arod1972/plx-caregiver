@@ -21,14 +21,14 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
   const bottom = Math.max(insets.bottom, space[2]);
 
   return (
-    <View style={{ backgroundColor: colors.canvas, alignItems: "center" }}>
+    <View style={{ backgroundColor: colors.bg, alignItems: "center" }}>
       <View
         accessibilityRole="tablist"
         style={{
           width: "100%",
           maxWidth: 480,
           flexDirection: "row",
-          backgroundColor: colors.surface,
+          backgroundColor: colors.bg,
           borderTopWidth: 1,
           borderTopColor: colors.line,
           paddingBottom: bottom,
@@ -39,7 +39,7 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = typeof options.title === "string" ? options.title : route.name;
-          const color = focused ? colors.accent : colors.muted;
+          const color = focused ? colors.accent : colors.faint;
 
           const onPress = () => {
             const event = emitter.emit({
@@ -62,23 +62,33 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
               style={({ pressed }) => [
                 {
                   flex: 1,
-                  minHeight: 52,
+                  minHeight: 48,
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 4,
-                  opacity: pressed ? 0.7 : 1,
+                  gap: 2,
+                  opacity: pressed ? 0.75 : 1,
                 },
                 webPointer,
               ]}
             >
-              <TabIcon name={route.name} color={color} size={22} />
+              <View
+                style={{
+                  width: 16,
+                  height: 2,
+                  borderRadius: 1,
+                  backgroundColor: focused ? colors.accent : "transparent",
+                  marginBottom: 2,
+                }}
+              />
+              <TabIcon name={route.name} color={color} size={focused ? 20 : 18} />
               <Text
                 style={{
                   color,
                   fontFamily,
                   fontSize: type.tab,
-                  lineHeight: Math.round(type.tab * 1.3),
-                  fontWeight: "600",
+                  lineHeight: Math.round(type.tab * 1.25),
+                  fontWeight: focused ? "600" : "500",
+                  letterSpacing: 0.1,
                 }}
               >
                 {label}

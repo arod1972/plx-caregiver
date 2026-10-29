@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
+import { ActionButton, AppText, Card, EmptyState, Field, HairlineRow, PageHeader, Screen } from "@/components/ui";
 import { usePosts, type PostItem } from "@/lib/use-posts";
 
 function whenLabel(iso: string) {
@@ -13,7 +13,7 @@ function whenLabel(iso: string) {
 
 export function UpdatesHome() {
   const posts = usePosts();
-  const { colors, parentMode, radius, space } = useTheme();
+  const { parentMode, space } = useTheme();
   const [draft, setDraft] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -30,64 +30,50 @@ export function UpdatesHome() {
       : !posts.canRead
         ? "Updates are not shared with this device."
         : posts.items.length === 0
-          ? "There are no updates yet."
+          ? "There are no notes yet."
           : `Updates. ${posts.items
               .slice(-8)
               .map((item) => `${item.authorId === posts.me ? "You" : item.authorName} said ${item.body}`)
               .join(". ")}`;
 
+  const ready = posts.phase === "ready" && posts.canRead;
+
   return (
     <Screen>
-      <Wordmark />
-      <AppText variant="title">Updates</AppText>
-      {parentMode ? null : <AppText tone="muted">Care notes for the people allowed to see them.</AppText>}
-      <ReadAloud text={spoken} />
-      {posts.phase === "loading" ? (
-        <Card>
-          <AppText tone="muted">Opening updates on this device.</AppText>
-        </Card>
-      ) : null}
-      {posts.phase === "error" ? (
-        <Card>
-          <AppText>{posts.message}</AppText>
-        </Card>
-      ) : null}
-      {posts.phase === "ready" && !posts.canRead ? (
-        <EmptyState title="Not shared here" body="A parent has not shared updates with this device." />
-      ) : null}
-      {posts.phase === "ready" && posts.canRead ? (
-        <Card style={{ gap: space[4] }}>
-          <Field label="Update" value={draft} onChangeText={setDraft} placeholder="What should the circle know?" multiline />
-          {formError ? <AppText>{formError}</AppText> : null}
-          <ActionButton label="Post" onPress={send} />
-        </Card>
-      ) : null}
-      {posts.phase === "ready" && posts.canRead && posts.items.length === 0 ? (
-        <EmptyState title="No updates yet" body="Family messages stay in this circle. They are not posted anywhere else." />
-      ) : null}
-      {posts.phase === "ready" && posts.canRead
-        ? posts.items.map((item: PostItem) => (
-            <View
-              key={item.id}
-              style={{
-                borderWidth: 1,
-                borderColor: colors.line,
-                borderRadius: radius.md,
-                backgroundColor: colors.surface,
-                padding: space[4],
-                gap: space[2],
-              }}
-            >
-              <AppText variant="caption" tone="muted">
-                {item.authorId === posts.me ? "You" : item.authorName}
-                {item.sentAt ? ` · ${whenLabel(item.sentAt)}` : ""}
-              </AppText>
-              <AppText>{item.body}</AppText>
-            </View>
-          ))
-        : null}
-      {posts.notice ? <AppText variant="caption" tone="muted">{posts.notice}</AppText> : null}
-      <AppText variant="caption" tone="muted">Private to your care circle.</AppText>
+      <PageHeader title="Updates" subtitle={parentMode ? undefined : "Notes for the people in this circle."} />
+      <View style={{ gap: space[6] }}>
+        <ReadAloud text={spoken} />
+        {posts.phase === "loading" ? <AppText tone="muted">Opening on this device.</AppText> : null}
+        {posts.phase === "error" ? <AppText>{posts.message}</AppText> : null}
+        {posts.phase === "ready" && !posts.canRead ? (
+          <EmptyState mark="locked" title="Not shared here" body="This isn't available on this device." />
+        ) : null}
+        {ready ? (
+          <Card>
+            <Field label="Update" value={draft} onChangeText={setDraft} placeholder="What should the circle know?" multiline />
+            {formError ? <AppText>{formError}</AppText> : null}
+            <ActionButton label="Post" onPress={send} />
+          </Card>
+        ) : null}
+        {ready && posts.items.length === 0 ? (
+          <EmptyState mark="updates" title="No notes yet" body="Updates for the circle will appear here." />
+        ) : null}
+        {ready && posts.items.length > 0 ? (
+          <View>
+            {posts.items.map((item: PostItem) => (
+              <HairlineRow key={item.id}>
+                <AppText variant="caption" tone="faint">
+                  {item.authorId === posts.me ? "You" : item.authorName}
+                  {item.sentAt ? ` · ${whenLabel(item.sentAt)}` : ""}
+                </AppText>
+                <AppText>{item.body}</AppText>
+              </HairlineRow>
+            ))}
+          </View>
+        ) : null}
+        {posts.notice ? <AppText variant="caption" tone="faint">{posts.notice}</AppText> : null}
+      </View>
+      <AppText variant="caption" tone="faint">Private to your care circle.</AppText>
     </Screen>
   );
 }

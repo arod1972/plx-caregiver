@@ -1,28 +1,21 @@
 import { ThisDevice } from "@/components/ThisDevice";
 import { useTheme } from "@/components/theme";
-import { AppText, Card, ChoiceGroup, Screen, Wordmark, textSizeOptions } from "@/components/ui";
+import { AppText, Card, ChoiceGroup, PageHeader, Screen, textSizeOptions } from "@/components/ui";
 
 export default function ProfileScreen() {
-  const { preference, setPreference, textSize, setTextSize, parentMode, setParentMode } = useTheme();
+  const { preference, setPreference, textSize, setTextSize, parentMode, setParentMode, space } = useTheme();
 
   return (
     <Screen>
-      <Wordmark />
-      <AppText variant="title">Profile</AppText>
-      {parentMode ? (
-        <AppText>Large text is on. Calendar, tasks, medications, and updates can be read aloud.</AppText>
-      ) : (
-        <AppText tone="muted">Text size, color, and this device's keys stay here.</AppText>
-      )}
-      <Card>
-        <AppText variant="label">Privacy</AppText>
-        <AppText>Care records stay on this device. There is no account, no central store, and nothing is sold.</AppText>
-      </Card>
-      <AppText variant="caption" tone="muted">
-        This circle works offline. Sync when you exchange updates.
+      <PageHeader
+        title="Profile"
+        subtitle={parentMode ? "Large text is on. Screens can be read aloud." : "Text, color, and this device."}
+      />
+      <AppText>
+        Care records stay on this device. There is no account, no central store, and nothing is sold. This circle works offline.
       </AppText>
       <ThisDevice />
-      <Card style={{ gap: 20 }}>
+      <Card style={{ gap: space[6] }}>
         <ChoiceGroup
           label="Parent mode"
           value={parentMode ? "on" : "off"}

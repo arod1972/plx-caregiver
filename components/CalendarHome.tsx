@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
+import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, HairlineRow, PageHeader, Screen, SectionLabel } from "@/components/ui";
 import { localStarts } from "@/lib/mesh/calendar.mjs";
 import { useCalendar, type CalendarItem } from "@/lib/use-calendar";
 
@@ -53,6 +53,24 @@ function stamp(iso: string) {
   return { date: `${date.getFullYear()}-${month}-${day}`, time: `${hours}:${minutes}` };
 }
 
+function repeatLabel(repeat: CalendarItem["repeat"]) {
+  if (repeat === "weekly") return "Every week";
+  if (repeat === "monthly") return "Every month";
+  if (repeat === "daily") return "Every day";
+  return "";
+}
+
+function groupByDay(items: CalendarItem[]) {
+  const groups: { key: string; label: string; items: CalendarItem[] }[] = [];
+  for (const item of items) {
+    const key = dayKey(item.occursAt);
+    const last = groups[groups.length - 1];
+    if (!last || last.key !== key) groups.push({ key, label: dayLabel(item.occursAt), items: [item] });
+    else last.items.push(item);
+  }
+  return groups;
+}
+
 type Draft = {
   id?: string;
   title: string;
@@ -65,7 +83,7 @@ type Draft = {
 
 export function CalendarHome() {
   const calendar = useCalendar();
-  const { colors, parentMode, radius, space, type, fontFamily } = useTheme();
+  const { parentMode, space } = useTheme();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -103,112 +121,102 @@ export function CalendarHome() {
       : !calendar.canView
         ? "The calendar is not shared with this device."
         : calendar.items.length === 0
-          ? "Nothing is on the calendar."
+          ? "Nothing is scheduled."
           : `Calendar. ${calendar.items
               .slice(0, 12)
               .map((item) => `${dayLabel(item.occursAt)} at ${timeLabel(item)}. ${item.title}. ${kindLabel(item.kind)}.`)
               .join(" ")}`;
 
+  const ready = calendar.phase === "ready" && calendar.canView;
+  const showList = ready && !draft;
+
   return (
     <Screen>
-      <Wordmark />
-      <AppText variant="label" tone="muted">
-        {dayLabel(Date.now())}
-      </AppText>
-      <AppText variant="title">Calendar</AppText>
-      {parentMode ? null : <AppText tone="muted">Appointments, visits, and important dates for the next 60 days.</AppText>}
-      <ReadAloud text={spoken} />
-      {calendar.phase === "loading" ? (
-        <Card>
-          <AppText tone="muted">Opening the calendar on this device.</AppText>
-        </Card>
-      ) : null}
-      {calendar.phase === "error" ? (
-        <Card>
-          <AppText>{calendar.message}</AppText>
-        </Card>
-      ) : null}
-      {calendar.phase === "ready" && !calendar.canView ? (
-        <EmptyState title="Not shared here" body="A parent has not shared the calendar with this device." />
-      ) : null}
-      {calendar.phase === "ready" && calendar.canView && draft ? (
-        <Card style={{ gap: space[4] }}>
-          <AppText variant="heading">{draft.id ? "Edit event" : "New event"}</AppText>
-          <Field label="Title" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} placeholder="Clinic visit" />
-          <ChoiceGroup label="Kind" value={draft.kind} onChange={(kind) => setDraft({ ...draft, kind })} options={kinds} />
-          <Field label="Date" value={draft.date} onChangeText={(date) => setDraft({ ...draft, date })} placeholder="2026-11-03" />
-          {draft.kind === "date" ? null : (
-            <Field label="Time" value={draft.time} onChangeText={(time) => setDraft({ ...draft, time })} placeholder="09:00" />
-          )}
-          <ChoiceGroup label="Repeats" value={draft.repeat} onChange={(repeat) => setDraft({ ...draft, repeat })} options={repeats} />
-          <Field label="Notes" value={draft.notes} onChangeText={(notes) => setDraft({ ...draft, notes })} placeholder="Optional" />
-          {draft.repeat !== "none" ? <AppText tone="muted">Saving changes the whole series.</AppText> : null}
-          {formError ? <AppText>{formError}</AppText> : null}
-          <ActionButton label="Save" onPress={save} />
-          {draft.id ? (
-            <ActionButton
-              label="Remove"
-              emphasis="quiet"
-              onPress={() => {
-                const id = draft.id;
-                if (!id) return;
-                calendar.remove(id).then(() => setDraft(null)).catch((error: unknown) => {
-                  setFormError(error instanceof Error ? error.message : "The event could not be removed.");
-                });
-              }}
-            />
-          ) : null}
-          <ActionButton label="Close" emphasis="quiet" onPress={() => setDraft(null)} />
-        </Card>
-      ) : null}
-      {calendar.phase === "ready" && calendar.canView && !draft && calendar.canEdit ? (
-        <ActionButton label="Add an event" onPress={openNew} />
-      ) : null}
-      {calendar.phase === "ready" && calendar.canView && !draft && calendar.items.length === 0 ? (
-        <EmptyState title="A clear day" body="Visits and appointments will gather here for everyone you trust with them." />
-      ) : null}
-      {calendar.phase === "ready" && calendar.canView && !draft
-        ? calendar.items.map((item, index) => {
-            const showDay = index === 0 || dayKey(item.occursAt) !== dayKey(calendar.items[index - 1].occursAt);
-            return (
-              <View key={`${item.id}-${item.occursAt}`} style={{ gap: space[3] }}>
-                {showDay ? <AppText variant="label">{dayLabel(item.occursAt)}</AppText> : null}
-                <Pressable
-                  accessibilityRole={calendar.canEdit && item.kind !== "med" ? "button" : "text"}
-                  accessibilityLabel={`${item.title}, ${kindLabel(item.kind)}`}
-                  disabled={!calendar.canEdit || item.kind === "med"}
-                  onPress={() => openEdit(item)}
-                  style={{
-                    minHeight: 48,
-                    borderWidth: 1,
-                    borderColor: colors.line,
-                    borderRadius: radius.md,
-                    backgroundColor: colors.surface,
-                    padding: space[4],
-                    gap: space[1],
-                  }}
-                >
-                  <AppText variant="caption" tone="muted">
-                    {timeLabel(item)} · {kindLabel(item.kind)}
-                    {item.repeat === "weekly" ? " · Every week" : item.repeat === "monthly" ? " · Every month" : item.repeat === "daily" ? " · Every day" : ""}
-                  </AppText>
-                  <AppText variant="heading">{item.title}</AppText>
-                  {item.notes ? (
-                    <AppText tone="muted" style={{ fontFamily, fontSize: type.body }}>
-                      {item.notes}
-                    </AppText>
-                  ) : null}
-                </Pressable>
+      <PageHeader
+        kicker={dayLabel(Date.now())}
+        title="Calendar"
+        subtitle={parentMode ? undefined : "Appointments, visits, and important dates."}
+      />
+      <View style={{ gap: space[6] }}>
+        <ReadAloud text={spoken} />
+        {calendar.phase === "loading" ? <AppText tone="muted">Opening on this device.</AppText> : null}
+        {calendar.phase === "error" ? <AppText>{calendar.message}</AppText> : null}
+        {calendar.phase === "ready" && !calendar.canView ? (
+          <EmptyState mark="locked" title="Not shared here" body="This isn't available on this device." />
+        ) : null}
+        {ready && draft ? (
+          <Card>
+            <AppText variant="heading">{draft.id ? "Edit event" : "New event"}</AppText>
+            <Field label="Title" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} placeholder="Clinic visit" />
+            <ChoiceGroup label="Kind" value={draft.kind} onChange={(kind) => setDraft({ ...draft, kind })} options={kinds} />
+            <Field label="Date" value={draft.date} onChangeText={(date) => setDraft({ ...draft, date })} placeholder="2026-11-03" />
+            {draft.kind === "date" ? null : (
+              <Field label="Time" value={draft.time} onChangeText={(time) => setDraft({ ...draft, time })} placeholder="09:00" />
+            )}
+            <ChoiceGroup label="Repeats" value={draft.repeat} onChange={(repeat) => setDraft({ ...draft, repeat })} options={repeats} />
+            <Field label="Notes" value={draft.notes} onChangeText={(notes) => setDraft({ ...draft, notes })} placeholder="Optional" />
+            {draft.repeat !== "none" ? <AppText tone="muted">Saving changes the whole series.</AppText> : null}
+            {formError ? <AppText>{formError}</AppText> : null}
+            <ActionButton label="Save" onPress={save} />
+            {draft.id ? (
+              <ActionButton
+                label="Remove"
+                emphasis="quiet"
+                onPress={() => {
+                  const id = draft.id;
+                  if (!id) return;
+                  calendar.remove(id).then(() => setDraft(null)).catch((error: unknown) => {
+                    setFormError(error instanceof Error ? error.message : "The event could not be removed.");
+                  });
+                }}
+              />
+            ) : null}
+            <ActionButton label="Close" emphasis="quiet" onPress={() => setDraft(null)} />
+          </Card>
+        ) : null}
+        {showList && calendar.canEdit ? <ActionButton label="Add an event" onPress={openNew} /> : null}
+        {showList && calendar.items.length === 0 ? (
+          <EmptyState mark="calendar" title="Nothing scheduled" body="Appointments and visits will appear here." />
+        ) : null}
+        {showList && calendar.items.length > 0 ? (
+          <View style={{ gap: space[6] }}>
+            {groupByDay(calendar.items).map((group) => (
+              <View key={group.key} style={{ gap: space[2] }}>
+                <SectionLabel>{group.label}</SectionLabel>
+                <View>
+                  {group.items.map((item) => {
+                    const series = repeatLabel(item.repeat);
+                    const editable = calendar.canEdit && item.kind !== "med";
+                    return (
+                      <HairlineRow key={`${item.id}-${item.occursAt}`}>
+                        <Pressable
+                          accessibilityRole={editable ? "button" : "text"}
+                          accessibilityLabel={`${item.title}, ${kindLabel(item.kind)}`}
+                          disabled={!editable}
+                          onPress={() => openEdit(item)}
+                        >
+                          <AppText variant="caption" tone="faint">
+                            {timeLabel(item)} · {kindLabel(item.kind)}
+                            {series ? ` · ${series}` : ""}
+                          </AppText>
+                          <AppText variant="heading">{item.title}</AppText>
+                          {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
+                        </Pressable>
+                      </HairlineRow>
+                    );
+                  })}
+                </View>
               </View>
-            );
-          })
-        : null}
-      {calendar.notice ? (
-        <AppText variant="caption" tone="muted">
-          {calendar.notice}
-        </AppText>
-      ) : null}
-      <AppText variant="caption" tone="muted">
+            ))}
+          </View>
+        ) : null}
+        {calendar.notice ? (
+          <AppText variant="caption" tone="faint">
+            {calendar.notice}
+          </AppText>
+        ) : null}
+      </View>
+      <AppText variant="caption" tone="faint">
         Private to your care circle.
       </AppText>
     </Screen>
