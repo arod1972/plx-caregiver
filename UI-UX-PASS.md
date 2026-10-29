@@ -65,6 +65,10 @@ Calm, trustworthy, warm-professional, modern, and pleasant. Refined restraint wi
 4. Update SPEC.md tracker if a new task ID is added, or reference this file in the PR.
 5. Do not expand scope into new features or architecture changes.
 
+## Status
+
+**Done.** Merged in https://github.com/arod1972/plx-caregiver/pull/14 on 2026-10-29. Calendar, Tasks, Meds, Updates, and Profile include the refinements above. Light, dark, and parent-mode screenshots are in `screenshots/ui-pass/`. The header remains the placeholder. No further visual pass is queued in this document.
+
 ---
 
 **Note:** Naming exercise (app name research to avoid crowded-field duplicates) will follow after this polish pass is defined. Current header “PRIMALUX CARE” is a placeholder tied to the company brand.
