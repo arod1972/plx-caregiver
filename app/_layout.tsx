@@ -5,7 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ThemeProvider, useTheme } from "@/components/theme";
 
-export { ErrorBoundary } from "expo-router";
+export { ErrorBoundary } from "@/components/CareError";
 
 function NavigationShell() {
   const { scheme, colors } = useTheme();

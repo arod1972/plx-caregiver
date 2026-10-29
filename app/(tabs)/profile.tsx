@@ -14,6 +14,13 @@ export default function ProfileScreen() {
       ) : (
         <AppText tone="muted">Text size, color, and this device's keys stay here.</AppText>
       )}
+      <Card>
+        <AppText variant="label">Privacy</AppText>
+        <AppText>Care records stay on this device. There is no account, no central store, and nothing is sold.</AppText>
+      </Card>
+      <AppText variant="caption" tone="muted">
+        This circle works offline. Sync when you exchange updates.
+      </AppText>
       <ThisDevice />
       <Card style={{ gap: 20 }}>
         <ChoiceGroup
