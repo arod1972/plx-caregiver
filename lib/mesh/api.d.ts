@@ -25,6 +25,21 @@ declare module "@/lib/mesh/repository.mjs" {
   export function renameDevice(store: unknown, name: string): Promise<PublicDevice>;
   export function renameCircle(store: unknown, name: string): Promise<{ id: string; name: string }>;
   export function setMemberRole(store: unknown, deviceId: string, role: CareRole): Promise<CareRole>;
+  export type AccessLevel = "edit" | "view" | "none";
+  export type MemberAccess = "role" | AccessLevel;
+  export type Sharing = {
+    roles: Record<CareRole, { view: boolean; edit: boolean }>;
+    members: Record<string, MemberAccess>;
+  };
+
+  export function readSharing(store: unknown): Promise<Sharing>;
+  export function resolveAccess(
+    sharing: Sharing,
+    role: CareRole,
+    deviceId?: string,
+  ): { view: boolean; edit: boolean };
+  export function setRoleAccess(store: unknown, role: CareRole, level: AccessLevel): Promise<Sharing>;
+  export function setMemberAccess(store: unknown, deviceId: string, level: MemberAccess): Promise<Sharing>;
   export function listPeers(store: unknown): Promise<PublicPeer[]>;
   export function createInvite(store: unknown, role?: CareRole): Promise<InviteResult>;
   export function createUpdates(store: unknown): Promise<{ text: string }>;
