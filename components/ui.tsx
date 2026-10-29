@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Platform, Pressable, ScrollView, Text, View, type TextStyle, type ViewStyle } from "react-native";
+import { Platform, Pressable, ScrollView, Text, TextInput, View, type TextStyle, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/components/theme";
@@ -171,3 +171,100 @@ export function textSizeOptions(): { value: TextSize; label: string }[] {
     { value: "extra", label: "Extra large" },
   ];
 }
+
+export function Field({
+  label,
+  value,
+  onChangeText,
+  onBlur,
+  multiline,
+  placeholder,
+  editable = true,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (next: string) => void;
+  onBlur?: () => void;
+  multiline?: boolean;
+  placeholder?: string;
+  editable?: boolean;
+}) {
+  const { colors, radius, space, type, fontFamily } = useTheme();
+  return (
+    <View style={{ gap: space[2] }}>
+      <AppText variant="label">{label}</AppText>
+      <TextInput
+        accessibilityLabel={label}
+        value={value}
+        onChangeText={onChangeText}
+        onBlur={onBlur}
+        placeholder={placeholder}
+        placeholderTextColor={colors.faint}
+        multiline={multiline}
+        editable={editable}
+        autoCapitalize="sentences"
+        autoCorrect={false}
+        style={{
+          minHeight: multiline ? 96 : 48,
+          borderWidth: 1,
+          borderColor: colors.line,
+          borderRadius: radius.sm,
+          backgroundColor: colors.bg,
+          color: colors.ink,
+          fontFamily,
+          fontSize: type.body,
+          lineHeight: Math.round(type.body * 1.4),
+          paddingHorizontal: space[4],
+          paddingVertical: space[3],
+          textAlignVertical: multiline ? "top" : "center",
+        }}
+      />
+    </View>
+  );
+}
+
+export function ActionButton({
+  label,
+  onPress,
+  emphasis = "primary",
+}: {
+  label: string;
+  onPress: () => void;
+  emphasis?: "primary" | "quiet";
+}) {
+  const { colors, radius, space, type, fontFamily } = useTheme();
+  const primary = emphasis === "primary";
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          minHeight: 48,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: space[4],
+          borderRadius: radius.sm,
+          borderWidth: 1,
+          borderColor: primary ? colors.accent : colors.line,
+          backgroundColor: primary ? colors.accent : colors.surface,
+          opacity: pressed ? 0.75 : 1,
+        },
+        webPointer,
+      ]}
+    >
+      <Text
+        style={{
+          color: primary ? colors.accentInk : colors.ink,
+          fontFamily,
+          fontSize: type.label,
+          fontWeight: "600",
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+

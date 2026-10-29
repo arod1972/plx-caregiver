@@ -1,3 +1,4 @@
+import { ThisDevice } from "@/components/ThisDevice";
 import { AppText, Card, ChoiceGroup, Screen, Wordmark, textSizeOptions } from "@/components/ui";
 import { useTheme } from "@/components/theme";
 
@@ -8,7 +9,8 @@ export default function ProfileScreen() {
     <Screen>
       <Wordmark />
       <AppText variant="title">Profile</AppText>
-      <AppText tone="muted">Text size and color stay on this device. Nothing is shared yet.</AppText>
+      <AppText tone="muted">Text size, color, and this device's keys stay here.</AppText>
+      <ThisDevice />
       <Card style={{ gap: 20 }}>
         <ChoiceGroup
           label="Appearance"
