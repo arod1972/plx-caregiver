@@ -141,7 +141,7 @@
 
 | ID | Phase | Task | Acceptance Criteria | Status | PR Link | Notes |
 |----|-------|------|---------------------|--------|---------|-------|
-| 0.1 | Setup | Initialize Expo React Native project structure, basic navigation, theming for large text/accessibility **and design system tokens (color, type, spacing)** | App launches, bottom tabs present, font scaling works, dark/light mode. Design system tokens implemented and used. | Not Started | - | Must follow Section 8 anti-slop rules. |
+| 0.1 | Setup | Initialize Expo React Native project structure, basic navigation, theming for large text/accessibility **and design system tokens (color, type, spacing)** | App launches, bottom tabs present, font scaling works, dark/light mode. Design system tokens implemented and used. | Done | https://github.com/arod1972/plx-caregiver/pull/1 | Expo SDK 58, Expo Router tabs, sage/warm tokens, light/dark/system, text size Standard/Large/Extra large. Screenshots in screenshots/0.1. |
 | 0.2 | Setup | Set up backend (Supabase or Node/Postgres), auth (email/password + magic link), basic user model | Users can sign up/login, session persists | Not Started | - | - |
 | 1.1 | Auth & Circle | Care Circle creation, invite members, role assignment (Parent, Caregiver, Family, Viewer) | Primary can create circle, invite by email, assign roles, members see only permitted data | Not Started | - | - |
 | 1.2 | Auth & Circle | Parent consent controls & permission management UI | Parent can toggle view/edit per role or member, changes take effect immediately | Not Started | - | UI must feel calm and clear. |
