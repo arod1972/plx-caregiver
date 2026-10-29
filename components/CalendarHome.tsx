@@ -5,19 +5,20 @@ import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Screen, Wo
 import { localStarts } from "@/lib/mesh/calendar.mjs";
 import { useCalendar, type CalendarItem } from "@/lib/use-calendar";
 
-const kinds: { value: CalendarItem["kind"]; label: string }[] = [
+const kinds: { value: "appointment" | "visit" | "date"; label: string }[] = [
   { value: "appointment", label: "Appointment" },
   { value: "visit", label: "Visit" },
   { value: "date", label: "Important date" },
 ];
 
-const repeats: { value: CalendarItem["repeat"]; label: string }[] = [
+const repeats: { value: "none" | "weekly" | "monthly"; label: string }[] = [
   { value: "none", label: "Does not repeat" },
   { value: "weekly", label: "Every week" },
   { value: "monthly", label: "Every month" },
 ];
 
 function kindLabel(kind: CalendarItem["kind"]) {
+  if (kind === "med") return "Medication";
   return kinds.find((item) => item.value === kind)?.label ?? "Appointment";
 }
 
@@ -54,10 +55,10 @@ function stamp(iso: string) {
 type Draft = {
   id?: string;
   title: string;
-  kind: CalendarItem["kind"];
+  kind: "appointment" | "visit" | "date";
   date: string;
   time: string;
-  repeat: CalendarItem["repeat"];
+  repeat: "none" | "weekly" | "monthly";
   notes: string;
 };
 
@@ -73,6 +74,7 @@ export function CalendarHome() {
   };
 
   const openEdit = (item: CalendarItem) => {
+    if (item.kind === "med" || item.repeat === "daily") return;
     const when = stamp(item.startsAt);
     setFormError(null);
     setDraft({ id: item.id, title: item.title, kind: item.kind, date: when.date, time: when.time, repeat: item.repeat, notes: item.notes });
@@ -158,9 +160,9 @@ export function CalendarHome() {
               <View key={`${item.id}-${item.occursAt}`} style={{ gap: space[3] }}>
                 {showDay ? <AppText variant="label">{dayLabel(item.occursAt)}</AppText> : null}
                 <Pressable
-                  accessibilityRole={calendar.canEdit ? "button" : "text"}
+                  accessibilityRole={calendar.canEdit && item.kind !== "med" ? "button" : "text"}
                   accessibilityLabel={`${item.title}, ${kindLabel(item.kind)}`}
-                  disabled={!calendar.canEdit}
+                  disabled={!calendar.canEdit || item.kind === "med"}
                   onPress={() => openEdit(item)}
                   style={{
                     minHeight: 48,
@@ -174,7 +176,7 @@ export function CalendarHome() {
                 >
                   <AppText variant="caption" tone="muted">
                     {timeLabel(item)} · {kindLabel(item.kind)}
-                    {item.repeat === "weekly" ? " · Every week" : item.repeat === "monthly" ? " · Every month" : ""}
+                    {item.repeat === "weekly" ? " · Every week" : item.repeat === "monthly" ? " · Every month" : item.repeat === "daily" ? " · Every day" : ""}
                   </AppText>
                   <AppText variant="heading">{item.title}</AppText>
                   {item.notes ? (
