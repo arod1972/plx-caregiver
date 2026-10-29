@@ -46,3 +46,28 @@ declare module "@/lib/mesh/repository.mjs" {
   export function acceptPayload(store: unknown, text: string): Promise<AcceptResult>;
   export function listCollection(store: unknown, collection: string): Promise<Array<Record<string, unknown>>>;
 }
+
+declare module "@/lib/mesh/calendar.mjs" {
+  export type EventKind = "appointment" | "visit" | "date";
+  export type EventRepeat = "none" | "weekly" | "monthly";
+  export type SavedEvent = {
+    id: string;
+    title: string;
+    kind: EventKind;
+    startsAt: string;
+    repeat: EventRepeat;
+    notes: string;
+    allDay: boolean;
+  };
+  export function localStarts(date: string, time?: string): string;
+  export function saveEvent(
+    store: unknown,
+    input: { id?: string; title: string; kind: EventKind; startsAt: string; repeat?: EventRepeat; notes?: string },
+  ): Promise<SavedEvent>;
+  export function deleteEvent(store: unknown, id: string): Promise<void>;
+  export function listUpcoming(
+    store: unknown,
+    now?: Date,
+  ): Promise<Array<SavedEvent & { occursAt: number }>>;
+  export function nextReminderAt(event: { startsAt?: string; repeat?: string }, now?: number): number | null;
+}

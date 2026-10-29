@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { openSqliteStore } from "@/lib/db/sqlite";
+import { careStore } from "@/lib/care-store";
 import { acceptPayload, createInvite, createUpdates, ensureDevice, listPeers, readSharing, renameCircle, renameDevice, resolveAccess, setMemberAccess, setMemberRole, setRoleAccess } from "@/lib/mesh/repository.mjs";
 
 export type CareRole = "parent" | "caregiver" | "family" | "viewer";
@@ -26,11 +26,8 @@ type Status =
     }
   | { phase: "error"; message: string };
 
-let storePromise: ReturnType<typeof openSqliteStore> | null = null;
-
 function store() {
-  storePromise ??= openSqliteStore();
-  return storePromise;
+  return careStore();
 }
 
 export function useLocalCare() {
