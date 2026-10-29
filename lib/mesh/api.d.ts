@@ -88,6 +88,9 @@ declare module "@/lib/mesh/medications.mjs" {
   ): Promise<Medication>;
   export function deleteMedication(store: unknown, id: string): Promise<void>;
   export function listMedications(store: unknown): Promise<Medication[]>;
+  export function nextDoseAt(time: string, now?: Date): number | null;
+  export function markTaken(store: unknown, medId: string, now?: Date): Promise<Medication & { taken: boolean; takenAt: string; weekTaken: number; weekDays: number } | undefined>;
+  export function adherence(store: unknown, now?: Date): Promise<Array<Medication & { taken: boolean; takenAt: string; weekTaken: number; weekDays: number }>>;
 }
 
 declare module "@/lib/mesh/tasks.mjs" {

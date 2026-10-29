@@ -12,6 +12,12 @@ function timeLabel(time: string) {
 
 type Draft = { id?: string; name: string; time: string; dosage: string; refillOn: string };
 
+function takenLabel(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Taken";
+  return `Taken ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(date)}`;
+}
+
 function dateLabel(value: string) {
   const [year, month, day] = value.split("-").map(Number);
   if (!year || !month || !day) return "";
@@ -37,7 +43,7 @@ export function MedsHome() {
     <Screen>
       <Wordmark />
       <AppText variant="title">Medications</AppText>
-      <AppText tone="muted">Name, dosage, daily time, and refill date for this circle.</AppText>
+      <AppText tone="muted">Name, dosage, daily time, and whether today's dose was taken.</AppText>
       {meds.phase === "loading" ? (
         <Card>
           <AppText tone="muted">Opening medications on this device.</AppText>
@@ -91,15 +97,8 @@ export function MedsHome() {
       ) : null}
       {meds.phase === "ready" && meds.canView && !draft
         ? meds.items.map((item: MedicationItem) => (
-            <Pressable
+            <View
               key={item.id}
-              accessibilityRole={meds.canEdit ? "button" : "text"}
-              accessibilityLabel={`${item.name}, ${item.dosage}, every day at ${timeLabel(item.time)}`}
-              disabled={!meds.canEdit}
-              onPress={() => {
-                setFormError(null);
-                setDraft({ id: item.id, name: item.name, time: item.time, dosage: item.dosage, refillOn: item.refillOn });
-              }}
               style={{
                 minHeight: 48,
                 borderWidth: 1,
@@ -107,18 +106,35 @@ export function MedsHome() {
                 borderRadius: radius.md,
                 backgroundColor: colors.surface,
                 padding: space[4],
-                gap: space[1],
+                gap: space[3],
               }}
             >
-              <AppText variant="caption" tone="muted">
-                Every day · {timeLabel(item.time)}
-              </AppText>
-              <AppText variant="heading">{item.name}</AppText>
-              {item.dosage ? <AppText tone="muted">{item.dosage}</AppText> : null}
-              {item.refillOn ? <AppText variant="caption" tone="muted">Refill {dateLabel(item.refillOn)}</AppText> : null}
-            </Pressable>
+              <Pressable
+                accessibilityRole={meds.canEdit ? "button" : "text"}
+                accessibilityLabel={`${item.name}, ${item.dosage}, every day at ${timeLabel(item.time)}`}
+                disabled={!meds.canEdit}
+                onPress={() => {
+                  setFormError(null);
+                  setDraft({ id: item.id, name: item.name, time: item.time, dosage: item.dosage, refillOn: item.refillOn });
+                }}
+              >
+                <AppText variant="caption" tone="muted">
+                  Every day · {timeLabel(item.time)}
+                </AppText>
+                <AppText variant="heading">{item.name}</AppText>
+                {item.dosage ? <AppText tone="muted">{item.dosage}</AppText> : null}
+                {item.refillOn ? <AppText variant="caption" tone="muted">Refill {dateLabel(item.refillOn)}</AppText> : null}
+                <AppText variant="caption" tone="muted">
+                  {item.taken ? takenLabel(item.takenAt) : "Not taken yet"} · This week {item.weekTaken} of {item.weekDays}
+                </AppText>
+              </Pressable>
+              {meds.canEdit && !item.taken ? (
+                <ActionButton label="Mark taken" onPress={() => meds.take(item.id).catch((error: unknown) => setFormError(error instanceof Error ? error.message : "The dose could not be marked."))} />
+              ) : null}
+            </View>
           ))
         : null}
+      {formError && !draft ? <AppText>{formError}</AppText> : null}
       {meds.notice ? (
         <AppText variant="caption" tone="muted">
           {meds.notice}
