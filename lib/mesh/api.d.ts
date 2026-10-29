@@ -118,3 +118,9 @@ declare module "@/lib/mesh/tasks.mjs" {
   export function removeTask(store: unknown, id: string): Promise<void>;
 }
 
+declare module "@/lib/mesh/posts.mjs" {
+  export type PostItem = { id: string; body: string; authorId: string; authorName: string; sentAt: string };
+  export function listPosts(store: unknown): Promise<PostItem[]>;
+  export function addPost(store: unknown, body: string): Promise<PostItem>;
+}
+

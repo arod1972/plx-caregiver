@@ -106,6 +106,25 @@ export async function clearDoseReminder(medId: string) {
     return;
   }
 }
+export async function notifyPost(post: { id: string; title: string; body: string }) {
+  try {
+    const db = await careStore();
+    const key = `notify.post.${post.id}`;
+    if (await db.getMeta(key)) return false;
+    if (!(await allowed())) {
+      await db.setMeta(key, "skip");
+      return false;
+    }
+    const id = await Notifications.scheduleNotificationAsync({
+      content: { title: post.title || "Update", body: post.body.slice(0, 120) },
+      trigger: null,
+    });
+    await db.setMeta(key, id);
+    return true;
+  } catch {
+    return false;
+  }
+}
 export async function clearAssignmentNotice(taskId: string) {
   try {
     const db = await careStore();
