@@ -21,6 +21,7 @@ import {
 
 const SCHEME_KEY = "plx-caregiver.color-scheme";
 const TEXT_KEY = "plx-caregiver.text-size";
+const PARENT_KEY = "plx-caregiver.parent-mode";
 
 const fontFamily = Platform.select({
   web: "Source Sans 3, Segoe UI, system-ui, sans-serif",
@@ -33,6 +34,8 @@ type ThemeValue = {
   setPreference: (next: ColorPreference) => void;
   textSize: TextSize;
   setTextSize: (next: TextSize) => void;
+  parentMode: boolean;
+  setParentMode: (next: boolean) => void;
   colors: ColorTokens;
   type: TypeTokens;
   space: typeof tokens.space;
@@ -57,7 +60,7 @@ function systemScheme(): Scheme {
   return Appearance.getColorScheme() === "dark" ? "dark" : "light";
 }
 
-function readWebPrefs(): { preference: ColorPreference; textSize: TextSize } | null {
+function readWebPrefs(): { preference: ColorPreference; textSize: TextSize; parentMode: boolean } | null {
   if (Platform.OS !== "web" || typeof localStorage === "undefined") return null;
   try {
     const preference = localStorage.getItem(SCHEME_KEY);
@@ -65,6 +68,7 @@ function readWebPrefs(): { preference: ColorPreference; textSize: TextSize } | n
     return {
       preference: isPreference(preference) ? preference : "system",
       textSize: isTextSize(textSize) ? textSize : "standard",
+      parentMode: localStorage.getItem(PARENT_KEY) === "1",
     };
   } catch {
     return null;
@@ -74,18 +78,25 @@ function readWebPrefs(): { preference: ColorPreference; textSize: TextSize } | n
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const webPrefs = readWebPrefs();
   const [preference, setPreferenceState] = useState<ColorPreference>(webPrefs?.preference ?? "system");
-  const [textSize, setTextSizeState] = useState<TextSize>(webPrefs?.textSize ?? "standard");
+  const [textSize, setTextSizeState] = useState<TextSize>(webPrefs?.parentMode ? "extra" : (webPrefs?.textSize ?? "standard"));
+  const [parentMode, setParentModeState] = useState(webPrefs?.parentMode ?? false);
   const [system, setSystem] = useState<Scheme>(systemScheme);
 
   useEffect(() => {
     let alive = true;
-    AsyncStorage.multiGet([SCHEME_KEY, TEXT_KEY])
+    AsyncStorage.multiGet([SCHEME_KEY, TEXT_KEY, PARENT_KEY])
       .then((pairs) => {
         if (!alive) return;
         const storedPreference = pairs[0]?.[1] ?? null;
         const storedText = pairs[1]?.[1] ?? null;
+        const storedParent = pairs[2]?.[1] === "1";
         if (isPreference(storedPreference)) setPreferenceState(storedPreference);
-        if (isTextSize(storedText)) setTextSizeState(storedText);
+        if (storedParent) {
+          setParentModeState(true);
+          setTextSizeState("extra");
+        } else if (isTextSize(storedText)) {
+          setTextSizeState(storedText);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -119,6 +130,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(TEXT_KEY, next).catch(() => undefined);
   }, []);
 
+  const setParentMode = useCallback((next: boolean) => {
+    const size: TextSize = next ? "extra" : "standard";
+    setParentModeState(next);
+    setTextSizeState(size);
+    AsyncStorage.multiSet([
+      [PARENT_KEY, next ? "1" : "0"],
+      [TEXT_KEY, size],
+    ]).catch(() => undefined);
+  }, []);
+
   const scheme: Scheme = preference === "system" ? system : preference;
 
   const value = useMemo<ThemeValue>(
@@ -128,13 +149,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setPreference,
       textSize,
       setTextSize,
+      parentMode,
+      setParentMode,
       colors: tokens.color[scheme],
       type: tokens.typeScale[textSize],
       space: tokens.space,
       radius: tokens.radius,
       fontFamily,
     }),
-    [preference, scheme, setPreference, setTextSize, textSize],
+    [parentMode, preference, scheme, setParentMode, setPreference, setTextSize, textSize],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

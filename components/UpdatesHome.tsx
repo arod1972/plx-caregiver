@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { useTheme } from "@/components/theme";
+import { ReadAloud } from "@/components/ReadAloud";
 import { ActionButton, AppText, Card, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
 import { usePosts, type PostItem } from "@/lib/use-posts";
 
@@ -12,7 +13,7 @@ function whenLabel(iso: string) {
 
 export function UpdatesHome() {
   const posts = usePosts();
-  const { colors, radius, space } = useTheme();
+  const { colors, parentMode, radius, space } = useTheme();
   const [draft, setDraft] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -23,11 +24,24 @@ export function UpdatesHome() {
     });
   };
 
+  const spoken =
+    posts.phase !== "ready"
+      ? "Updates are still opening."
+      : !posts.canRead
+        ? "Updates are not shared with this device."
+        : posts.items.length === 0
+          ? "There are no updates yet."
+          : `Updates. ${posts.items
+              .slice(-8)
+              .map((item) => `${item.authorId === posts.me ? "You" : item.authorName} said ${item.body}`)
+              .join(". ")}`;
+
   return (
     <Screen>
       <Wordmark />
       <AppText variant="title">Updates</AppText>
-      <AppText tone="muted">Care notes for the people allowed to see them.</AppText>
+      {parentMode ? null : <AppText tone="muted">Care notes for the people allowed to see them.</AppText>}
+      <ReadAloud text={spoken} />
       {posts.phase === "loading" ? (
         <Card>
           <AppText tone="muted">Opening updates on this device.</AppText>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
+import { ReadAloud } from "@/components/ReadAloud";
 import { ActionButton, AppText, Card, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
 import { useMeds, type MedicationItem } from "@/lib/use-meds";
 
@@ -26,7 +27,7 @@ function dateLabel(value: string) {
 
 export function MedsHome() {
   const meds = useMeds();
-  const { colors, radius, space } = useTheme();
+  const { colors, parentMode, radius, space } = useTheme();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -39,11 +40,23 @@ export function MedsHome() {
       .catch((error: unknown) => setFormError(error instanceof Error ? error.message : "The medication could not be saved."));
   };
 
+  const spoken =
+    meds.phase !== "ready"
+      ? "Medications are still opening."
+      : !meds.canView
+        ? "Medications are not shared with this device."
+        : meds.items.length === 0
+          ? "No medications are saved."
+          : `Medications. ${meds.items
+              .map((item) => `${item.name}. ${item.dosage}. Every day at ${timeLabel(item.time)}. ${item.taken ? takenLabel(item.takenAt) : "Not taken yet"}.`)
+              .join(" ")}`;
+
   return (
     <Screen>
       <Wordmark />
       <AppText variant="title">Medications</AppText>
-      <AppText tone="muted">Name, dosage, daily time, and whether today's dose was taken.</AppText>
+      {parentMode ? null : <AppText tone="muted">Name, dosage, daily time, and whether today's dose was taken.</AppText>}
+      <ReadAloud text={spoken} />
       {meds.phase === "loading" ? (
         <Card>
           <AppText tone="muted">Opening medications on this device.</AppText>
