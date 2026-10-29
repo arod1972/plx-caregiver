@@ -1,6 +1,6 @@
 # plx-caregiver Specification & Living Development Tracker
 
-**Version:** 1.0 (MVP Kickoff)
+**Version:** 1.1 (MVP Kickoff + UI/UX Guardrails)
 **Last Updated:** 2026-10-29
 **Owner:** PrimaLux Advisory (Adrian L. Rodriguez)
 **Repo:** https://github.com/arod1972/plx-caregiver
@@ -98,13 +98,34 @@
 - Audit logs for sensitive actions.
 - Optional: parent-only mode with simplified view.
 
-## 8. Design Principles (Parent-Friendly)
+## 8. Design Principles & Premier UI/UX Guidelines (Mandatory)
 
+**Core Aesthetic Direction:** Calm, trustworthy, warm-professional, modern, and pleasant. Not cold clinical, not playful consumer, and definitely not generic AI-generated "slop." Think refined Apple Health / Headspace / Calm crossed with a practical family tool. Premium feel through intentional design, generous whitespace, refined typography, and restraint — not luxury excess or flashy effects.
+
+### Design System Requirements
+- **Typography:** System fonts (SF Pro on iOS, Roboto/Material on Android) or a carefully chosen modern sans (e.g., Inter with custom tracking, or a warm alternative). Clear hierarchy. Parent mode: body text 18–22pt+, titles larger. High contrast ratios (WCAG AA minimum).
+- **Color Palette:** Warm neutrals (soft off-whites, warm grays) + one primary accent (soft teal, sage green, or muted navy). Support light and dark modes. Avoid pure black/white extremes and generic purple/blue AI gradients.
+- **Spacing:** Strict 4/8pt grid. Generous padding and margins. Cards with comfortable internal padding.
+- **Components:** Consistent, reusable only. Clean cards with subtle borders or soft shadows (restrained elevation). Large touch targets (minimum 44pt). Iconography: simple line style (Lucide, SF Symbols, or equivalent) — purposeful only, no decorative clutter.
+- **Motion:** Subtle, purposeful only (ease-out transitions, gentle feedback). No bouncy defaults, no excessive animations, no glassmorphism overload.
+
+### Explicit Anti-Slop Guardrails (Build Agent Must Follow)
+- Do **not** ship default Expo/React Native styling without heavy, intentional customization.
+- Prohibit generic "AI app" aesthetic: purple/blue gradients, floating orbs, sparkles, mismatched radii, cluttered density, stock AI illustrations of smiling seniors, emoji overload.
+- No one-off styles or inconsistent components. Everything must use the design system.
+- Visual hierarchy must be clear; screens must feel spacious and calm, never crowded.
+- Empty states and illustrations: minimal, custom or carefully selected; no generic placeholders.
+- Branding: Subtle PrimaLux professional modern feel. App icon and accents should feel premium and trustworthy.
+- Every screen must pass the test: "Does this look like a polished product a family would trust with sensitive caregiving information?"
+
+### Parent-Friendly Specifics (Still Required)
 - Large text (adjustable), high contrast, large touch targets.
 - Simple navigation (bottom tabs: Calendar, Tasks, Meds, Updates, Profile).
 - Voice/audio support (read reminders, voice input where possible).
 - Minimal cognitive load: clear icons + text, progressive disclosure.
 - Support for different languages (future).
+
+**Build Agent Rule:** All UI work must adhere to these guidelines. Include screenshots in PRs for visual review. Deviation requires updating this section first.
 
 ## 9. Living Development Tracker (Build Agent Use This)
 
@@ -120,19 +141,19 @@
 
 | ID | Phase | Task | Acceptance Criteria | Status | PR Link | Notes |
 |----|-------|------|---------------------|--------|---------|-------|
-| 0.1 | Setup | Initialize Expo React Native project structure, basic navigation, theming for large text/accessibility | App launches, bottom tabs present, font scaling works, dark/light mode | Not Started | - | - |
+| 0.1 | Setup | Initialize Expo React Native project structure, basic navigation, theming for large text/accessibility **and design system tokens (color, type, spacing)** | App launches, bottom tabs present, font scaling works, dark/light mode. Design system tokens implemented and used. | Not Started | - | Must follow Section 8 anti-slop rules. |
 | 0.2 | Setup | Set up backend (Supabase or Node/Postgres), auth (email/password + magic link), basic user model | Users can sign up/login, session persists | Not Started | - | - |
 | 1.1 | Auth & Circle | Care Circle creation, invite members, role assignment (Parent, Caregiver, Family, Viewer) | Primary can create circle, invite by email, assign roles, members see only permitted data | Not Started | - | - |
-| 1.2 | Auth & Circle | Parent consent controls & permission management UI | Parent can toggle view/edit per role or member, changes take effect immediately | Not Started | - | - |
+| 1.2 | Auth & Circle | Parent consent controls & permission management UI | Parent can toggle view/edit per role or member, changes take effect immediately | Not Started | - | UI must feel calm and clear. |
 | 2.1 | Calendar | Shared calendar: create/view/edit events (appointments, visits, important dates), recurrence | Events visible to authorized, notifications on create/update | Not Started | - | - |
 | 2.2 | Calendar | Medication times as calendar events + dedicated med view | Med schedules appear on calendar | Not Started | - | - |
 | 3.1 | Tasks | Task list: create, assign to members, status updates (Open/Assigned/Done), notifications | Assignee notified, can mark complete, history visible | Not Started | - | - |
 | 4.1 | Medications | Medication list: add name, dosage, schedule, refill date | List shared per permissions | Not Started | - | - |
 | 4.2 | Medications | Reminders (push) + log "taken" (by parent or caregiver), adherence view | Reminder fires, taken log updates status, family can see if taken | Not Started | - | - |
 | 5.1 | Updates | Secure family updates/messaging: post updates, view thread, notifications | Only authorized members see posts, real-time or near-real-time | Not Started | - | - |
-| 6.1 | UX | Parent-friendly mode: large text toggle, simplified views, voice read-aloud for key screens | Parent can enable large text; key info readable aloud | Not Started | - | - |
+| 6.1 | UX | Parent-friendly mode: large text toggle, simplified views, voice read-aloud for key screens | Parent can enable large text; key info readable aloud. Full adherence to Section 8 design system. | Not Started | - | Screenshots required in PR. |
 | 7.1 | Security | Encryption, basic audit log for access/changes to sensitive data | Data encrypted at rest/transit; audit entries for meds/calendar edits | Not Started | - | - |
-| 8.1 | Polish | Basic error handling, offline awareness note, privacy policy stub, app icon/branding (PrimaLux) | App handles common errors gracefully; privacy note present | Not Started | - | - |
+| 8.1 | Polish | Basic error handling, offline awareness note, privacy policy stub, app icon/branding (PrimaLux), **visual polish pass against Section 8** | App handles common errors gracefully; privacy note present. UI looks sleek, professional, modern, and pleasant — no AI slop. | Not Started | - | Final visual review required. |
 
 **Status Values:** Not Started | In Progress | Done | Blocked
 
@@ -145,6 +166,6 @@
 
 ---
 
-**Build Agent Kickoff Note:** This SPEC.md is your tracker. Start with task 0.1. Update this file after every merge. Reference task IDs in all PRs. Do not expand scope without updating the document.
+**Build Agent Kickoff Note:** This SPEC.md is your tracker. Start with task 0.1. Update this file after every merge. Reference task IDs in all PRs. Do not expand scope without updating the document. All UI must strictly follow Section 8 Premier UI/UX Guidelines.
 
 **Market & Feasibility sources:** Emergen Research, Fact.MR, competitor sites (CaringVillage, etc.), caregiver surveys (e.g., Caregiver Action Network 2026).
