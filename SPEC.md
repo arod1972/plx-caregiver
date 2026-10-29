@@ -1,6 +1,6 @@
 # plx-caregiver Specification & Living Development Tracker
 
-**Version:** 1.1 (MVP Kickoff + UI/UX Guardrails)
+**Version:** 1.2 (Local-First Architecture)
 **Last Updated:** 2026-10-29
 **Owner:** PrimaLux Advisory (Adrian L. Rodriguez)
 **Repo:** https://github.com/arod1972/plx-caregiver
@@ -10,7 +10,9 @@
 
 **plx-caregiver** is a privacy-first, parent-friendly family caregiving coordination app for families supporting an aging parent (or similar care recipient). It reduces the mental load of coordination by providing a single, secure hub for calendar, tasks, medication reminders, and family updates.
 
-**Initial Version (MVP) Focus:** Shared care calendar, task assignments, medication list/reminders with taken logging, and secure family updates/messaging. Emphasize simplicity, consent controls, and large-text/voice-friendly design for the parent.
+**Architecture Principle (v1.2):** Local-first. Primary data lives on-device. Shared coordination works among authorized devices without maintaining a central coordination server for the core shared state. Sync between authorized devices is peer-to-peer or CRDT/mergeable (eventual consistency). Optional minimal signaling/relay only for discovery, invites, or NAT traversal — not as the source of truth. Incorporates patterns researched for Response-Cell (local SQLite + MESH sync with signed append-only packages, heartbeat pull/push, QR/JSON invites with keys, optional introducer) and Grant-Studio (local-first workstation).
+
+**Initial Version (MVP) Focus:** Shared care calendar, task assignments, medication list/reminders with taken logging, and secure family updates/messaging. Emphasize simplicity, consent controls, and large-text/voice-friendly design for the parent. Offline-first by default.
 
 **Future phases** (post-MVP interviews): health notes, emergency info, secure document storage, optional location/check-in (with explicit consent), multilingual support, AI summaries.
 
@@ -24,79 +26,83 @@
   - Medisafe: Strong meds tracking. Gaps: not a full hub.
   - Others (CircleOf, ianacare, etc.): Fragmented.
 - **Pain Points Addressed:** Coordination time sink (meds, appointments, refills), fragmented information across texts/emails, sibling assumption gaps, low senior adoption of complex apps, privacy/trust concerns.
-- **Feasibility:** High. Standard tech stack. Pure consumer family app does not trigger full HIPAA (no covered entity), but design to privacy-by-design standards: encryption, RBAC, parent consent/revocation, audit logs. Parent-friendly UX is critical differentiator.
+- **Feasibility:** High. Local-first stack is standard and privacy-enhancing. Pure consumer family app does not trigger full HIPAA (no covered entity), but design to privacy-by-design standards: local encryption, RBAC via shared keys/roles, parent consent/revocation, local audit logs. Parent-friendly UX is critical differentiator.
 
-**Conclusion:** Market supports and is feasible. Proceed with MVP.
+**Conclusion:** Market supports and is feasible. Proceed with MVP on local-first architecture.
 
 ## 3. MVP Scope
 
 ### Core Features (Must-Have for v1)
 1. **Shared Care Calendar**
    - Appointments, medication times, visits, important dates.
-   - Viewable/editable by authorized family members.
-   - Recurring events, notifications.
+   - Viewable/editable by authorized family members (synced across devices).
+   - Recurring events, local notifications.
 
 2. **Task Coordination**
    - Assign errands, rides, meals, follow-ups to family members.
    - Status: Open / Assigned / In Progress / Done.
-   - Notifications on assignment/completion.
+   - Local notifications on assignment/completion.
 
 3. **Medication List & Reminders**
    - Dosage, schedule, refill tracking.
    - Record when dose was taken (by parent or caregiver).
-   - Reminders (push + optional SMS).
+   - Local reminders (push via OS + optional SMS if needed).
 
 4. **Secure Family Updates / Messaging**
    - Organized care-related communication in one place (threaded updates or simple chat).
-   - Visible only to authorized members.
+   - Visible only to authorized members; synced across authorized devices.
 
 ### Supporting Features
-- **Privacy & Consent Controls:** Parent (or primary) decides who can view/change information. Easy permission updates. Role-based (Parent, Primary Caregiver, Family Member, Viewer).
+- **Privacy & Consent Controls:** Parent (or primary) decides who can view/change information. Easy permission updates. Role-based (Parent, Primary Caregiver, Family Member, Viewer) enforced locally via shared keys/roles.
 - **Parent-Friendly Design:** Large text, high contrast, simple navigation, voice/audio options (e.g., read-aloud), minimal steps.
-- **Auth & Security:** Secure login (email/password + optional social/magic link), encryption in transit/at rest, audit of access.
+- **Auth & Security:** Device pairing / invite codes (QR or link), local encryption at rest, end-to-end encrypted sync between authorized devices. No central account required for core function (optional for recovery).
 
-**Out of Scope for MVP:** Full document storage, location tracking, EHR integration, advanced AI, multi-language (beyond English), professional caregiver marketplace.
+**Out of Scope for MVP:** Full document storage, location tracking, EHR integration, advanced AI, multi-language (beyond English), professional caregiver marketplace, always-on central coordination server for shared data.
 
-## 4. Tech Stack Recommendations
+## 4. Tech Stack Recommendations (Local-First)
 
 - **Mobile/Web:** React Native with Expo (cross-platform iOS/Android + web). Parent mode with accessibility (large fonts, voice).
-- **Backend:** Node.js + Express or NestJS. Or Supabase for faster MVP (Postgres + Auth + Realtime).
-- **Database:** PostgreSQL (encrypted).
-- **Auth:** Supabase Auth or Clerk.
-- **Notifications:** Expo Push + optional Twilio SMS for seniors.
-- **Hosting:** Vercel/Railway/Supabase (privacy-focused configs).
-- **Encryption:** TLS 1.3+, AES-256 at rest, app-level for sensitive fields if needed.
+- **Primary Data Store:** Local SQLite (expo-sqlite) on each device as the source of truth.
+- **Sync / Sharing:** CRDT or mergeable store (e.g., TinyBase with CRDT support, Yjs, or equivalent MESH-style signed append-only packages) for conflict-free sync of shared calendar/tasks/meds/updates between authorized devices. Peer-to-peer (WebRTC / local network) preferred; optional minimal signaling/introducer only for discovery/NAT traversal (not for data storage). Patterns from Response-Cell MESH and Grant-Studio local-first.
+- **Device Authorization:** QR code or invite link (JSON with key material) with key exchange for pairing authorized devices. Roles and permissions stored and enforced locally.
+- **Notifications:** Local notifications (Expo Notifications / OS). Optional external SMS only if required for seniors without app.
+- **Encryption:** AES-256 at rest on device; end-to-end encrypted sync payloads between authorized devices.
+- **Optional Minimal Services:** Only for invite delivery, optional account recovery, or signaling — never the canonical store for care data.
 
-**Rationale:** Fast iteration, strong privacy options, accessibility support, cost-effective for family consumer app.
+**Rationale:** Maximizes privacy and offline capability. Aligns with local-first principles (data stays on device; authorized devices sync directly). Incorporates Response-Cell (local SQLite + MESH, QR invites, optional introducer) and Grant-Studio local-first patterns. Reduces operational burden (no central coordination server to maintain for shared state). Fast iteration with Expo.
 
-## 5. Data Models (High-Level)
+## 5. Data Models (High-Level, Local)
 
-- **User:** id, name, email, role, preferences (font size, voice), consent flags.
-- **CareCircle / Family:** id, parent_id, members[] with roles/permissions.
-- **Event/CalendarItem:** id, title, type (appointment/med/visit), datetime, recurrence, assignees, notes.
-- **Task:** id, title, description, assignee_id, status, due_date, completed_by, completed_at.
-- **Medication:** id, name, dosage, schedule (times), refill_date, taken_logs[].
-- **Update/Message:** id, author_id, content, timestamp, attachments?, visible_to_roles.
-- **AuditLog:** action, user_id, timestamp, resource.
+- **User / Device:** local id, name, device key, role, preferences (font size, voice), consent flags. (No central user table required.)
+- **CareCircle / Family:** id, parent_id, authorized_members[] (with roles/permissions and public keys or shared secrets), local copy on each device.
+- **Event/CalendarItem:** id, title, type (appointment/med/visit), datetime, recurrence, assignees, notes. (CRDT/mergeable.)
+- **Task:** id, title, description, assignee_id, status, due_date, completed_by, completed_at. (CRDT/mergeable.)
+- **Medication:** id, name, dosage, schedule (times), refill_date, taken_logs[]. (CRDT/mergeable.)
+- **Update/Message:** id, author_id, content, timestamp, attachments?, visible_to_roles. (CRDT/mergeable.)
+- **AuditLog:** action, user_id/device_id, timestamp, resource. (Local; optionally synced.)
 
-## 6. User Flows (Key)
+All shared entities use mergeable/CRDT semantics so concurrent offline edits converge deterministically.
 
-1. Parent or primary creates Care Circle, invites family via email/link.
-2. Parent sets permissions (who can edit calendar, see meds, etc.).
-3. Add calendar events / assign tasks / log meds.
-4. Parent or family marks dose taken or task complete.
-5. Post secure update; authorized members notified.
-6. Parent can revoke access anytime.
+## 6. User Flows (Key, Local-First)
+
+1. Parent or primary creates Care Circle locally; generates invite (QR/code/link with key material).
+2. Authorized family members pair their devices via invite; receive encrypted copy of shared state.
+3. Parent sets permissions (who can edit calendar, see meds, etc.) — enforced locally on all authorized devices.
+4. Add calendar events / assign tasks / log meds — written locally immediately; synced to other authorized devices when connected (P2P or via minimal relay).
+5. Parent or family marks dose taken or task complete — local write + sync.
+6. Post secure update; authorized members receive via sync and local notification.
+7. Parent can revoke access anytime (remove from authorized set; future syncs stop).
 
 ## 7. Privacy, Consent & Security Requirements
 
-- Explicit consent from parent for data sharing within circle.
-- Role-based access control (RBAC).
-- Encryption in transit (TLS) and at rest.
-- No sale of data; clear privacy policy.
-- Easy permission management and data export/deletion.
-- Audit logs for sensitive actions.
+- Explicit consent from parent for data sharing within circle (recorded locally).
+- Role-based access control enforced locally (shared keys/roles).
+- Encryption at rest (device) and end-to-end for sync between authorized devices.
+- No sale of data; clear privacy policy. No central store of care data.
+- Easy permission management and data export/deletion (local).
+- Local audit logs for sensitive actions.
 - Optional: parent-only mode with simplified view.
+- Device pairing requires explicit authorization; no open broadcast of care data.
 
 ## 8. Design Principles & Premier UI/UX Guidelines (Mandatory)
 
@@ -142,17 +148,17 @@
 | ID | Phase | Task | Acceptance Criteria | Status | PR Link | Notes |
 |----|-------|------|---------------------|--------|---------|-------|
 | 0.1 | Setup | Initialize Expo React Native project structure, basic navigation, theming for large text/accessibility **and design system tokens (color, type, spacing)** | App launches, bottom tabs present, font scaling works, dark/light mode. Design system tokens implemented and used. | Done | https://github.com/arod1972/plx-caregiver/pull/1 | Expo SDK 58, Expo Router tabs, sage/warm tokens, light/dark/system, text size Standard/Large/Extra large. Screenshots in screenshots/0.1. |
-| 0.2 | Setup | Set up backend (Supabase or Node/Postgres), auth (email/password + magic link), basic user model | Users can sign up/login, session persists | Not Started | - | - |
-| 1.1 | Auth & Circle | Care Circle creation, invite members, role assignment (Parent, Caregiver, Family, Viewer) | Primary can create circle, invite by email, assign roles, members see only permitted data | Not Started | - | - |
-| 1.2 | Auth & Circle | Parent consent controls & permission management UI | Parent can toggle view/edit per role or member, changes take effect immediately | Not Started | - | UI must feel calm and clear. |
-| 2.1 | Calendar | Shared calendar: create/view/edit events (appointments, visits, important dates), recurrence | Events visible to authorized, notifications on create/update | Not Started | - | - |
-| 2.2 | Calendar | Medication times as calendar events + dedicated med view | Med schedules appear on calendar | Not Started | - | - |
-| 3.1 | Tasks | Task list: create, assign to members, status updates (Open/Assigned/Done), notifications | Assignee notified, can mark complete, history visible | Not Started | - | - |
-| 4.1 | Medications | Medication list: add name, dosage, schedule, refill date | List shared per permissions | Not Started | - | - |
-| 4.2 | Medications | Reminders (push) + log "taken" (by parent or caregiver), adherence view | Reminder fires, taken log updates status, family can see if taken | Not Started | - | - |
-| 5.1 | Updates | Secure family updates/messaging: post updates, view thread, notifications | Only authorized members see posts, real-time or near-real-time | Not Started | - | - |
+| 0.2 | Setup | Set up local-first data layer: expo-sqlite primary store + CRDT/mergeable/MESH sync layer (signed append-only packages), device identity/key generation | Local DB initializes; basic CRUD works offline; sync primitives ready for authorized devices. No central backend required for core data. | Not Started | - | Follow local-first architecture in Section 4. Patterns from Response-Cell / Grant-Studio. |
+| 1.1 | Auth & Circle | Care Circle creation, device pairing via QR/invite code, role assignment (Parent, Caregiver, Family, Viewer) | Primary can create circle locally, generate invite, pair authorized devices, assign roles. Shared state syncs to paired devices. | Not Started | - | Local-first pairing; no central account required. |
+| 1.2 | Auth & Circle | Parent consent controls & permission management UI | Parent can toggle view/edit per role or member; changes propagate via sync. | Not Started | - | UI must feel calm and clear. |
+| 2.1 | Calendar | Shared calendar: create/view/edit events (appointments, visits, important dates), recurrence | Events written locally, visible to authorized devices via sync; local notifications on create/update. | Not Started | - | Offline-first. |
+| 2.2 | Calendar | Medication times as calendar events + dedicated med view | Med schedules appear on calendar; synced. | Not Started | - | - |
+| 3.1 | Tasks | Task list: create, assign to members, status updates (Open/Assigned/Done), notifications | Assignee notified locally; can mark complete; history visible; synced across devices. | Not Started | - | - |
+| 4.1 | Medications | Medication list: add name, dosage, schedule, refill date | List shared per permissions via sync. | Not Started | - | - |
+| 4.2 | Medications | Local reminders + log "taken" (by parent or caregiver), adherence view | Reminder fires locally; taken log updates status; family can see if taken via sync. | Not Started | - | Local notifications primary. |
+| 5.1 | Updates | Secure family updates/messaging: post updates, view thread, notifications | Only authorized members see posts; near-real-time or eventual via sync. | Not Started | - | CRDT/mergeable. |
 | 6.1 | UX | Parent-friendly mode: large text toggle, simplified views, voice read-aloud for key screens | Parent can enable large text; key info readable aloud. Full adherence to Section 8 design system. | Not Started | - | Screenshots required in PR. |
-| 7.1 | Security | Encryption, basic audit log for access/changes to sensitive data | Data encrypted at rest/transit; audit entries for meds/calendar edits | Not Started | - | - |
+| 7.1 | Security | Local encryption at rest, E2E sync encryption, basic local audit log for sensitive actions | Data encrypted on device; sync payloads E2E; local audit entries for meds/calendar edits. | Not Started | - | No central store. |
 | 8.1 | Polish | Basic error handling, offline awareness note, privacy policy stub, app icon/branding (PrimaLux), **visual polish pass against Section 8** | App handles common errors gracefully; privacy note present. UI looks sleek, professional, modern, and pleasant — no AI slop. | Not Started | - | Final visual review required. |
 
 **Status Values:** Not Started | In Progress | Done | Blocked
@@ -166,6 +172,6 @@
 
 ---
 
-**Build Agent Kickoff Note:** This SPEC.md is your tracker. Start with task 0.1. Update this file after every merge. Reference task IDs in all PRs. Do not expand scope without updating the document. All UI must strictly follow Section 8 Premier UI/UX Guidelines.
+**Build Agent Kickoff Note:** This SPEC.md is your tracker. Start with the next Not Started task (currently 0.2). Update this file after every merge. Reference task IDs in all PRs. Do not expand scope without updating the document. All UI must strictly follow Section 8 Premier UI/UX Guidelines. Architecture is local-first: on-device primary, authorized device sync, no central coordination server for shared care data.
 
-**Market & Feasibility sources:** Emergen Research, Fact.MR, competitor sites (CaringVillage, etc.), caregiver surveys (e.g., Caregiver Action Network 2026).
+**Market & Feasibility sources:** Emergen Research, Fact.MR, competitor sites (CaringVillage, etc.), caregiver surveys (e.g., Caregiver Action Network 2026). Local-first patterns consistent with prior Response-Cell / Grant-Studio research (local SQLite, CRDT/mergeable/MESH sync, device pairing).
