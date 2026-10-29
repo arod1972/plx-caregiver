@@ -80,9 +80,12 @@ declare module "@/lib/mesh/calendar.mjs" {
 }
 
 declare module "@/lib/mesh/medications.mjs" {
-  export type Medication = { id: string; name: string; time: string };
+  export type Medication = { id: string; name: string; time: string; dosage: string; refillOn: string };
   export function medicationOccurrences(med: { time?: string; at_time?: string }, fromMs: number, untilMs: number): number[];
-  export function saveMedication(store: unknown, input: { id?: string; name: string; time: string }): Promise<Medication>;
+  export function saveMedication(
+    store: unknown,
+    input: { id?: string; name: string; time: string; dosage: string; refillOn?: string },
+  ): Promise<Medication>;
   export function deleteMedication(store: unknown, id: string): Promise<void>;
   export function listMedications(store: unknown): Promise<Medication[]>;
 }

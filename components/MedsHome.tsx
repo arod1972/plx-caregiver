@@ -10,7 +10,13 @@ function timeLabel(time: string) {
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(2026, 0, 1, hours, minutes));
 }
 
-type Draft = { id?: string; name: string; time: string };
+type Draft = { id?: string; name: string; time: string; dosage: string; refillOn: string };
+
+function dateLabel(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" }).format(new Date(year, month - 1, day));
+}
 
 export function MedsHome() {
   const meds = useMeds();
@@ -31,7 +37,7 @@ export function MedsHome() {
     <Screen>
       <Wordmark />
       <AppText variant="title">Medications</AppText>
-      <AppText tone="muted">Times that also appear on the calendar. Every day, for this circle.</AppText>
+      <AppText tone="muted">Name, dosage, daily time, and refill date for this circle.</AppText>
       {meds.phase === "loading" ? (
         <Card>
           <AppText tone="muted">Opening medications on this device.</AppText>
@@ -48,9 +54,11 @@ export function MedsHome() {
       {meds.phase === "ready" && meds.canView && draft ? (
         <Card style={{ gap: space[4] }}>
           <AppText variant="heading">{draft.id ? "Edit medication" : "New medication"}</AppText>
-          <Field label="Name" value={draft.name} onChangeText={(name) => setDraft({ ...draft, name })} placeholder="Morning lisinopril" />
+          <Field label="Name" value={draft.name} onChangeText={(name) => setDraft({ ...draft, name })} placeholder="Lisinopril" />
+          <Field label="Dosage" value={draft.dosage} onChangeText={(dosage) => setDraft({ ...draft, dosage })} placeholder="10 mg" />
           <Field label="Time" value={draft.time} onChangeText={(time) => setDraft({ ...draft, time })} placeholder="08:00" />
-          <AppText tone="muted">It shows every day on the calendar.</AppText>
+          <Field label="Refill date" value={draft.refillOn} onChangeText={(refillOn) => setDraft({ ...draft, refillOn })} placeholder="Optional, 2026-12-01" />
+          <AppText tone="muted">The time repeats every day on the calendar.</AppText>
           {formError ? <AppText>{formError}</AppText> : null}
           <ActionButton label="Save" onPress={save} />
           {draft.id ? (
@@ -74,23 +82,23 @@ export function MedsHome() {
           label="Add a medication"
           onPress={() => {
             setFormError(null);
-            setDraft({ name: "", time: "08:00" });
+            setDraft({ name: "", time: "08:00", dosage: "", refillOn: "" });
           }}
         />
       ) : null}
       {meds.phase === "ready" && meds.canView && !draft && meds.items.length === 0 ? (
-        <EmptyState title="No medications yet" body="Add a name and a time. The circle will see it on the calendar." />
+        <EmptyState title="No medications yet" body="Add a name, a dosage, and a time. The circle will see it here and on the calendar." />
       ) : null}
       {meds.phase === "ready" && meds.canView && !draft
         ? meds.items.map((item: MedicationItem) => (
             <Pressable
               key={item.id}
               accessibilityRole={meds.canEdit ? "button" : "text"}
-              accessibilityLabel={`${item.name}, every day at ${timeLabel(item.time)}`}
+              accessibilityLabel={`${item.name}, ${item.dosage}, every day at ${timeLabel(item.time)}`}
               disabled={!meds.canEdit}
               onPress={() => {
                 setFormError(null);
-                setDraft({ id: item.id, name: item.name, time: item.time });
+                setDraft({ id: item.id, name: item.name, time: item.time, dosage: item.dosage, refillOn: item.refillOn });
               }}
               style={{
                 minHeight: 48,
@@ -106,6 +114,8 @@ export function MedsHome() {
                 Every day · {timeLabel(item.time)}
               </AppText>
               <AppText variant="heading">{item.name}</AppText>
+              {item.dosage ? <AppText tone="muted">{item.dosage}</AppText> : null}
+              {item.refillOn ? <AppText variant="caption" tone="muted">Refill {dateLabel(item.refillOn)}</AppText> : null}
             </Pressable>
           ))
         : null}
