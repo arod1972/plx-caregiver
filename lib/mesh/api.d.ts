@@ -65,9 +65,24 @@ declare module "@/lib/mesh/calendar.mjs" {
     input: { id?: string; title: string; kind: EventKind; startsAt: string; repeat?: EventRepeat; notes?: string },
   ): Promise<SavedEvent>;
   export function deleteEvent(store: unknown, id: string): Promise<void>;
-  export function listUpcoming(
-    store: unknown,
-    now?: Date,
-  ): Promise<Array<SavedEvent & { occursAt: number }>>;
+  export type ListedEvent = {
+    id: string;
+    title: string;
+    kind: EventKind | "med";
+    startsAt: string;
+    repeat: EventRepeat | "daily";
+    notes: string;
+    allDay: boolean;
+    occursAt: number;
+  };
+  export function listUpcoming(store: unknown, now?: Date): Promise<ListedEvent[]>;
   export function nextReminderAt(event: { startsAt?: string; repeat?: string }, now?: number): number | null;
+}
+
+declare module "@/lib/mesh/medications.mjs" {
+  export type Medication = { id: string; name: string; time: string };
+  export function medicationOccurrences(med: { time?: string; at_time?: string }, fromMs: number, untilMs: number): number[];
+  export function saveMedication(store: unknown, input: { id?: string; name: string; time: string }): Promise<Medication>;
+  export function deleteMedication(store: unknown, id: string): Promise<void>;
+  export function listMedications(store: unknown): Promise<Medication[]>;
 }

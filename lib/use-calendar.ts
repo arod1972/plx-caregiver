@@ -7,9 +7,9 @@ import { cancelReminder, remindEvent } from "@/lib/remind";
 export type CalendarItem = {
   id: string;
   title: string;
-  kind: "appointment" | "visit" | "date";
+  kind: "appointment" | "visit" | "date" | "med";
   startsAt: string;
-  repeat: "none" | "weekly" | "monthly";
+  repeat: "none" | "weekly" | "monthly" | "daily";
   notes: string;
   allDay: boolean;
   occursAt: number;
@@ -45,7 +45,14 @@ export function useCalendar() {
   }, [refresh]);
 
   const save = useCallback(
-    async (input: { id?: string; title: string; kind: CalendarItem["kind"]; startsAt: string; repeat: CalendarItem["repeat"]; notes: string }) => {
+    async (input: {
+      id?: string;
+      title: string;
+      kind: "appointment" | "visit" | "date";
+      startsAt: string;
+      repeat: "none" | "weekly" | "monthly";
+      notes: string;
+    }) => {
       const db = await careStore();
       const saved = await saveEvent(db, input);
       const when = nextReminderAt(saved);
