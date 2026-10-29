@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
+import { ReadAloud } from "@/components/ReadAloud";
 import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
 import { localStarts } from "@/lib/mesh/calendar.mjs";
 import { useCalendar, type CalendarItem } from "@/lib/use-calendar";
@@ -64,7 +65,7 @@ type Draft = {
 
 export function CalendarHome() {
   const calendar = useCalendar();
-  const { colors, radius, space, type, fontFamily } = useTheme();
+  const { colors, parentMode, radius, space, type, fontFamily } = useTheme();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -96,6 +97,18 @@ export function CalendarHome() {
       .catch((error: unknown) => setFormError(error instanceof Error ? error.message : "The event could not be saved."));
   };
 
+  const spoken =
+    calendar.phase !== "ready"
+      ? "The calendar is still opening."
+      : !calendar.canView
+        ? "The calendar is not shared with this device."
+        : calendar.items.length === 0
+          ? "Nothing is on the calendar."
+          : `Calendar. ${calendar.items
+              .slice(0, 12)
+              .map((item) => `${dayLabel(item.occursAt)} at ${timeLabel(item)}. ${item.title}. ${kindLabel(item.kind)}.`)
+              .join(" ")}`;
+
   return (
     <Screen>
       <Wordmark />
@@ -103,7 +116,8 @@ export function CalendarHome() {
         {dayLabel(Date.now())}
       </AppText>
       <AppText variant="title">Calendar</AppText>
-      <AppText tone="muted">Appointments, visits, and important dates for the next 60 days.</AppText>
+      {parentMode ? null : <AppText tone="muted">Appointments, visits, and important dates for the next 60 days.</AppText>}
+      <ReadAloud text={spoken} />
       {calendar.phase === "loading" ? (
         <Card>
           <AppText tone="muted">Opening the calendar on this device.</AppText>

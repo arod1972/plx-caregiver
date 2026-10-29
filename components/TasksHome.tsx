@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
+import { ReadAloud } from "@/components/ReadAloud";
 import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Screen, Wordmark } from "@/components/ui";
 import { useTasks, type TaskItem } from "@/lib/use-tasks";
 
@@ -20,7 +21,7 @@ function doneLabel(iso: string) {
 
 export function TasksHome() {
   const tasks = useTasks();
-  const { colors, radius, space } = useTheme();
+  const { colors, parentMode, radius, space } = useTheme();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const openItems = tasks.items.filter((item) => item.status !== "done");
@@ -36,6 +37,20 @@ export function TasksHome() {
       .catch((error: unknown) => setFormError(error instanceof Error ? error.message : "The task could not be saved."));
   };
 
+  const spoken =
+    tasks.phase !== "ready"
+      ? "Tasks are still opening."
+      : !tasks.canView
+        ? "Tasks are not shared with this device."
+        : tasks.items.length === 0
+          ? "There are no tasks."
+          : `Tasks. ${tasks.items
+              .map((item) => {
+                const owner = item.assignee === tasks.me ? "assigned to you" : item.assigneeName ? `assigned to ${item.assigneeName}` : "open";
+                return item.status === "done" ? `${item.title}, done.` : `${item.title}, ${owner}.`;
+              })
+              .join(" ")}`;
+
   const card = {
     minHeight: 48,
     borderWidth: 1,
@@ -50,7 +65,8 @@ export function TasksHome() {
     <Screen>
       <Wordmark />
       <AppText variant="title">Tasks</AppText>
-      <AppText tone="muted">Errands, rides, meals, and follow-ups, with a clear owner.</AppText>
+      {parentMode ? null : <AppText tone="muted">Errands, rides, meals, and follow-ups, with a clear owner.</AppText>}
+      <ReadAloud text={spoken} />
       {tasks.phase === "loading" ? (
         <Card>
           <AppText tone="muted">Opening tasks on this device.</AppText>
