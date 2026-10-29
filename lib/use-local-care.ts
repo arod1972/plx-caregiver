@@ -1,13 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
 import { openSqliteStore } from "@/lib/db/sqlite";
-import { acceptPayload, createInvite, createUpdates, ensureDevice, listPeers, renameCircle, renameDevice, setMemberRole } from "@/lib/mesh/repository.mjs";
+import { acceptPayload, createInvite, createUpdates, ensureDevice, listPeers, readSharing, renameCircle, renameDevice, resolveAccess, setMemberAccess, setMemberRole, setRoleAccess } from "@/lib/mesh/repository.mjs";
 
 export type CareRole = "parent" | "caregiver" | "family" | "viewer";
+export type AccessLevel = "edit" | "view" | "none";
+export type MemberAccess = "role" | AccessLevel;
 export type LocalPeer = { deviceId: string; name: string; pairedAt: string; role: CareRole };
+export type Sharing = {
+  roles: Record<CareRole, { view: boolean; edit: boolean }>;
+  members: Record<string, MemberAccess>;
+};
 
 type Status =
   | { phase: "loading" }
-  | { phase: "ready"; name: string; deviceId: string; circleName: string; role: CareRole; primary: boolean; peers: LocalPeer[] }
+  | {
+      phase: "ready";
+      name: string;
+      deviceId: string;
+      circleName: string;
+      role: CareRole;
+      primary: boolean;
+      peers: LocalPeer[];
+      sharing: Sharing;
+      mine: { view: boolean; edit: boolean };
+    }
   | { phase: "error"; message: string };
 
 let storePromise: ReturnType<typeof openSqliteStore> | null = null;
@@ -28,6 +44,7 @@ export function useLocalCare() {
     const db = await store();
     const device = await ensureDevice(db);
     const peers = await listPeers(db);
+    const sharing = await readSharing(db);
     setStatus({
       phase: "ready",
       name: device.name,
@@ -36,6 +53,8 @@ export function useLocalCare() {
       role: device.role,
       primary: device.primary,
       peers,
+      sharing,
+      mine: resolveAccess(sharing, device.role, device.id),
     });
   }, []);
 
@@ -70,6 +89,26 @@ export function useLocalCare() {
       const db = await store();
       await setMemberRole(db, deviceId, role);
       setNotice("Role saved on this device. Copy updates so the other device can catch up.");
+      await refresh();
+    },
+    [refresh],
+  );
+
+  const saveRoleAccess = useCallback(
+    async (role: CareRole, level: AccessLevel) => {
+      const db = await store();
+      await setRoleAccess(db, role, level);
+      setNotice("Sharing saved on this device. Copy updates so the other device can catch up.");
+      await refresh();
+    },
+    [refresh],
+  );
+
+  const saveMemberAccess = useCallback(
+    async (deviceId: string, level: MemberAccess) => {
+      const db = await store();
+      await setMemberAccess(db, deviceId, level);
+      setNotice("Sharing saved on this device. Copy updates so the other device can catch up.");
       await refresh();
     },
     [refresh],
@@ -113,5 +152,5 @@ export function useLocalCare() {
     [refresh],
   );
 
-  return { status, notice, inviteText, confirmationText, updatesText, saveName, saveCircle, saveRole, makeInvite, shareUpdates, pair };
+  return { status, notice, inviteText, confirmationText, updatesText, saveName, saveCircle, saveRole, saveRoleAccess, saveMemberAccess, makeInvite, shareUpdates, pair };
 }

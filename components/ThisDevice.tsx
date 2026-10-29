@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { QrMark } from "@/components/QrMark";
+import { SharingCard } from "@/components/Sharing";
 import { useTheme } from "@/components/theme";
 import { ActionButton, AppText, Card, ChoiceGroup, Field } from "@/components/ui";
 import { useLocalCare, type CareRole } from "@/lib/use-local-care";
@@ -99,6 +100,24 @@ export function ThisDevice() {
           ),
         )}
       </Card>
+      <SharingCard
+        canManage={ready.primary || ready.role === "parent"}
+        sharing={ready.sharing}
+        peers={ready.peers}
+        mine={ready.mine}
+        onRole={(role, level) => {
+          setFormError(null);
+          care.saveRoleAccess(role, level).catch((error: unknown) => {
+            setFormError(error instanceof Error ? error.message : "Sharing could not be saved.");
+          });
+        }}
+        onMember={(deviceId, level) => {
+          setFormError(null);
+          care.saveMemberAccess(deviceId, level).catch((error: unknown) => {
+            setFormError(error instanceof Error ? error.message : "Sharing could not be saved.");
+          });
+        }}
+      />
       <Card style={{ gap: space[4] }}>
         <AppText variant="heading">This device</AppText>
         <AppText tone="muted">A private name for this phone or computer. Care records stay here until you pair.</AppText>
