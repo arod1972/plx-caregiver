@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@appeeky/expo-healthkit": "^0.4.2",
     "@expo/vector-icons": "^15.0.2",
     "@noble/ciphers": "^2.4.0",
     "@noble/curves": "^2.4.0",
@@ -39,7 +40,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test lib/mesh/mesh.test.mjs lib/mesh/calendar.test.mjs lib/mesh/medications.test.mjs lib/mesh/tasks.test.mjs lib/mesh/posts.test.mjs lib/mesh/security.test.mjs"
+    "test": "node --test lib/mesh/mesh.test.mjs lib/mesh/calendar.test.mjs lib/mesh/medications.test.mjs lib/mesh/tasks.test.mjs lib/mesh/posts.test.mjs lib/mesh/security.test.mjs lib/health/summary.test.mjs"
   },
   "private": true
 }

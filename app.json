@@ -8,7 +8,15 @@
     "scheme": "plxcaregiver",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.primalux.caregiver",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "PrimaLux Care reads steps, heart rate, and sleep on this iPhone after you allow it. Readings stay on this device unless you choose to share a daily summary.",
+        "NSHealthUpdateUsageDescription": "PrimaLux Care can save a pulse reading you type. It does not change other Apple Health data."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -43,7 +51,17 @@
         }
       ],
       "expo-sqlite",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "@appeeky/expo-healthkit",
+        {
+          "healthSharePermission": "PrimaLux Care reads steps, heart rate, and sleep on this iPhone after you allow it. Readings stay on this device unless you choose to share a daily summary.",
+          "healthUpdatePermission": "PrimaLux Care can save a pulse reading you type. It does not change other Apple Health data.",
+          "isBackgroundDeliveryEnabled": false,
+          "isClinicalDataEnabled": false,
+          "healthConnectPermissions": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

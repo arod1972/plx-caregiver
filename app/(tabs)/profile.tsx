@@ -1,6 +1,8 @@
+import { router } from "expo-router";
+
 import { ThisDevice } from "@/components/ThisDevice";
 import { useTheme } from "@/components/theme";
-import { AppText, Card, ChoiceGroup, Masthead, Screen, textSizeOptions } from "@/components/ui";
+import { ActionButton, AppText, Card, ChoiceGroup, Masthead, Screen, textSizeOptions } from "@/components/ui";
 
 export default function ProfileScreen() {
   const { preference, setPreference, textSize, setTextSize, parentMode, setParentMode, space } = useTheme();
@@ -19,6 +21,11 @@ export default function ProfileScreen() {
         Works offline. Sync when you exchange updates.
       </AppText>
       <ThisDevice />
+      <Card style={{ gap: space[4] }}>
+        <AppText variant="heading">Apple Health</AppText>
+        <AppText tone="muted">Steps, heart rate, and sleep. Only after you allow it, and only on this iPhone.</AppText>
+        <ActionButton label="Apple Health" emphasis="quiet" onPress={() => router.push("/health")} />
+      </Card>
       <Card style={{ gap: space[6] }}>
         <ChoiceGroup
           label="Parent mode"

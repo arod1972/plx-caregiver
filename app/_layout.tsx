@@ -29,6 +29,7 @@ function NavigationShell() {
         <View style={{ flex: 1, width: "100%", maxWidth: 480, backgroundColor: colors.bg }}>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "PrimaLux Care" }} />
+            <Stack.Screen name="health" options={{ headerShown: false, title: "Apple Health" }} />
           </Stack>
         </View>
       </View>
