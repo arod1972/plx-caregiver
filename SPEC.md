@@ -1,6 +1,6 @@
 # plx-caregiver Specification & Living Development Tracker
 
-**Version:** 1.2 (Local-First Architecture)
+**Version:** 1.3 (Local-First + Native iOS Capabilities)
 **Last Updated:** 2026-10-29
 **Owner:** PrimaLux Advisory (Adrian L. Rodriguez)
 **Repo:** https://github.com/arod1972/plx-caregiver
@@ -10,9 +10,11 @@
 
 **plx-caregiver** is a privacy-first, parent-friendly family caregiving coordination app for families supporting an aging parent (or similar care recipient). It reduces the mental load of coordination by providing a single, secure hub for calendar, tasks, medication reminders, and family updates.
 
-**Architecture Principle (v1.2):** Local-first. Primary data lives on-device. Shared coordination works among authorized devices without maintaining a central coordination server for the core shared state. Sync between authorized devices is peer-to-peer or CRDT/mergeable (eventual consistency). Optional minimal signaling/relay only for discovery, invites, or NAT traversal — not as the source of truth. Incorporates patterns researched for Response-Cell (local SQLite + MESH sync with signed append-only packages, heartbeat pull/push, QR/JSON invites with keys, optional introducer) and Grant-Studio (local-first workstation).
+**Architecture Principle (v1.2+):** Local-first. Primary data lives on-device. Shared coordination works among authorized devices without maintaining a central coordination server for the core shared state. Sync between authorized devices is peer-to-peer or CRDT/mergeable (eventual consistency). Optional minimal signaling/relay only for discovery, invites, or NAT traversal — not as the source of truth. Incorporates patterns researched for Response-Cell (local SQLite + MESH sync with signed append-only packages, heartbeat pull/push, QR/JSON invites with keys, optional introducer) and Grant-Studio (local-first workstation).
 
 **Initial Version (MVP) Focus:** Shared care calendar, task assignments, medication list/reminders with taken logging, and secure family updates/messaging. Emphasize simplicity, consent controls, and large-text/voice-friendly design for the parent. Offline-first by default.
+
+**v1.3 Additions (Must-Have):** Basic HealthKit integration, camera-based medication label scanning to identify and mark doses, and Siri/App Intents for hands-off operation. Full normal UI remains primary; Siri is additive for tech-savvy users.
 
 **Future phases** (post-MVP interviews): health notes, emergency info, secure document storage, optional location/check-in (with explicit consent), multilingual support, AI summaries.
 
@@ -47,6 +49,7 @@
    - Dosage, schedule, refill tracking.
    - Record when dose was taken (by parent or caregiver).
    - Local reminders (push via OS + optional SMS if needed).
+   - **v1.3:** Camera scan of medication labels to identify and help mark taken/not taken.
 
 4. **Secure Family Updates / Messaging**
    - Organized care-related communication in one place (threaded updates or simple chat).
@@ -56,20 +59,44 @@
 - **Privacy & Consent Controls:** Parent (or primary) decides who can view/change information. Easy permission updates. Role-based (Parent, Primary Caregiver, Family Member, Viewer) enforced locally via shared keys/roles.
 - **Parent-Friendly Design:** Large text, high contrast, simple navigation, voice/audio options (e.g., read-aloud), minimal steps.
 - **Auth & Security:** Device pairing / invite codes (QR or link), local encryption at rest, end-to-end encrypted sync between authorized devices. No central account required for core function (optional for recovery).
+- **v1.3 Native iOS Capabilities (Must-Have):**
+  - Basic HealthKit read/write (steps, heart rate, sleep, and medication-related where available).
+  - Camera for medication label scanning (OCR + matching to existing list).
+  - Siri / App Intents for hands-off actions (e.g., mark dose taken, check next med, log simple update) while full UI remains primary.
 
 **Out of Scope for MVP:** Full document storage, location tracking, EHR integration, advanced AI, multi-language (beyond English), professional caregiver marketplace, always-on central coordination server for shared data.
 
 ## 4. Tech Stack Recommendations (Local-First)
 
-- **Mobile/Web:** React Native with Expo (cross-platform iOS/Android + web). Parent mode with accessibility (large fonts, voice).
+- **Mobile/Web:** React Native with Expo (cross-platform iOS/Android + web). Parent mode with accessibility (large fonts, voice). Use Expo development builds (`npx expo run:ios` or EAS) for native capabilities.
 - **Primary Data Store:** Local SQLite (expo-sqlite) on each device as the source of truth.
 - **Sync / Sharing:** CRDT or mergeable store (e.g., TinyBase with CRDT support, Yjs, or equivalent MESH-style signed append-only packages) for conflict-free sync of shared calendar/tasks/meds/updates between authorized devices. Peer-to-peer (WebRTC / local network) preferred; optional minimal signaling/introducer only for discovery/NAT traversal (not for data storage). Patterns from Response-Cell MESH and Grant-Studio local-first.
 - **Device Authorization:** QR code or invite link (JSON with key material) with key exchange for pairing authorized devices. Roles and permissions stored and enforced locally.
 - **Notifications:** Local notifications (Expo Notifications / OS). Optional external SMS only if required for seniors without app.
 - **Encryption:** AES-256 at rest on device; end-to-end encrypted sync payloads between authorized devices.
+- **Native iOS Capabilities (v1.3):**
+  - HealthKit via Expo-compatible module (e.g. `apple-health` or `@appeeky/expo-healthkit` or equivalent). Config plugin for entitlements.
+  - Camera + OCR for medication labels (Expo Camera + on-device or local OCR library; match against local medication list).
+  - Siri / App Intents via `expo-app-intents` or equivalent for basic intents (mark taken, next dose, etc.).
 - **Optional Minimal Services:** Only for invite delivery, optional account recovery, or signaling — never the canonical store for care data.
 
-**Rationale:** Maximizes privacy and offline capability. Aligns with local-first principles (data stays on device; authorized devices sync directly). Incorporates Response-Cell (local SQLite + MESH, QR invites, optional introducer) and Grant-Studio local-first patterns. Reduces operational burden (no central coordination server to maintain for shared state). Fast iteration with Expo.
+**Rationale:** Maximizes privacy and offline capability. Aligns with local-first principles (data stays on device; authorized devices sync directly). Incorporates Response-Cell (local SQLite + MESH, QR invites, optional introducer) and Grant-Studio local-first patterns. Reduces operational burden (no central coordination server to maintain for shared state). Fast iteration with Expo while enabling native iOS features via development builds.
+
+## 4.1 iOS Deploy Command Batch (Build Agent Must Provide)
+
+Because the development machine has been used primarily with Xcode and Swift, the build agent must include (in README or a dedicated `ios-deploy.md`) a clear, copy-pasteable command batch that produces a deployable iOS app from the Expo project:
+
+```bash
+# Prerequisites: Node, Expo CLI, Apple Developer account, Xcode installed
+npx expo install
+npx expo prebuild --platform ios
+# Open in Xcode if needed: open ios/*.xcworkspace
+npx expo run:ios
+# Or for EAS Build (recommended for distribution):
+npx eas build --platform ios --profile production
+```
+
+Include notes on enabling HealthKit capability, adding usage descriptions, and signing. The agent must ensure the project can generate a signed IPA or run on device via the above flow.
 
 ## 5. Data Models (High-Level, Local)
 
@@ -77,9 +104,10 @@
 - **CareCircle / Family:** id, parent_id, authorized_members[] (with roles/permissions and public keys or shared secrets), local copy on each device.
 - **Event/CalendarItem:** id, title, type (appointment/med/visit), datetime, recurrence, assignees, notes. (CRDT/mergeable.)
 - **Task:** id, title, description, assignee_id, status, due_date, completed_by, completed_at. (CRDT/mergeable.)
-- **Medication:** id, name, dosage, schedule (times), refill_date, taken_logs[]. (CRDT/mergeable.)
+- **Medication:** id, name, dosage, schedule (times), refill_date, taken_logs[], label_scan_data? (CRDT/mergeable.)
 - **Update/Message:** id, author_id, content, timestamp, attachments?, visible_to_roles. (CRDT/mergeable.)
 - **AuditLog:** action, user_id/device_id, timestamp, resource. (Local; optionally synced.)
+- **HealthKitSamples (optional local cache):** limited recent samples for display (steps, HR, sleep) with user consent.
 
 All shared entities use mergeable/CRDT semantics so concurrent offline edits converge deterministically.
 
@@ -89,9 +117,11 @@ All shared entities use mergeable/CRDT semantics so concurrent offline edits con
 2. Authorized family members pair their devices via invite; receive encrypted copy of shared state.
 3. Parent sets permissions (who can edit calendar, see meds, etc.) — enforced locally on all authorized devices.
 4. Add calendar events / assign tasks / log meds — written locally immediately; synced to other authorized devices when connected (P2P or via minimal relay).
-5. Parent or family marks dose taken or task complete — local write + sync.
+5. Parent or family marks dose taken or task complete — local write + sync. Optional: scan label with camera to assist identification.
 6. Post secure update; authorized members receive via sync and local notification.
 7. Parent can revoke access anytime (remove from authorized set; future syncs stop).
+8. **v1.3:** Siri phrases (e.g. “Mark morning med taken”) trigger App Intents that update local state and sync.
+9. **v1.3:** Optional HealthKit permission flow; basic samples available for display with consent.
 
 ## 7. Privacy, Consent & Security Requirements
 
@@ -103,6 +133,7 @@ All shared entities use mergeable/CRDT semantics so concurrent offline edits con
 - Local audit logs for sensitive actions.
 - Optional: parent-only mode with simplified view.
 - Device pairing requires explicit authorization; no open broadcast of care data.
+- HealthKit access requires explicit system permission and clear usage description; only basic types; never stored off-device without consent.
 
 ## 8. Design Principles & Premier UI/UX Guidelines (Mandatory)
 
@@ -160,6 +191,10 @@ All shared entities use mergeable/CRDT semantics so concurrent offline edits con
 | 6.1 | UX | Parent-friendly mode: large text toggle, simplified views, voice read-aloud for key screens | Parent can enable large text; key info readable aloud. Full adherence to Section 8 design system. | Done | https://github.com/arod1972/plx-caregiver/pull/11 | Parent mode on Profile sets Extra large text and shortens the calendar, tasks, medications, and updates screens. Those screens can be read aloud. Screenshots in screenshots/6.1. |
 | 7.1 | Security | Local encryption at rest, E2E sync encryption, basic local audit log for sensitive actions | Data encrypted on device; sync payloads E2E; local audit entries for meds/calendar edits. | Done | https://github.com/arod1972/plx-caregiver/pull/12 | Device copy and SQLite bodies are sealed with a vault key kept outside the database. Copied updates are sealed; the circle key is wrapped with the pairing secret and is not in the invite. Medication, dose, and calendar edits write a local audit entry without the care text. The audit log is not synced. |
 | 8.1 | Polish | Basic error handling, offline awareness note, privacy policy stub, app icon/branding (PrimaLux), **visual polish pass against Section 8** | App handles common errors gracefully; privacy note present. UI looks sleek, professional, modern, and pleasant — no AI slop. | Done | https://github.com/arod1972/plx-caregiver/pull/13 | Profile states that care stays on the device, nothing is sold, and the circle works offline. A screen error offers Try again in the same palette. The icon is a sage ring on warm paper. Screenshots in screenshots/8.1. |
+| 9.1 | Native | Basic HealthKit integration (read steps, heart rate, sleep; optional write limited samples) with consent | HealthKit permission flow works on device; basic samples displayed with clear consent; data stays local unless explicitly shared. | Not Started |  | Use Expo-compatible HealthKit module + config plugin. Requires development build. |
+| 9.2 | Native | Camera medication label scan to identify and assist marking taken/not taken | Camera opens, OCR extracts text, matches against local medication list, offers one-tap mark taken. Works offline. | Not Started |  | Expo Camera + on-device OCR. Match against existing med records. |
+| 9.3 | Native | Siri / App Intents for hands-off use (mark dose taken, check next medication, simple status) | Basic intents registered; Siri phrases trigger local updates that sync. Full UI remains fully usable without Siri. | Not Started |  | Use expo-app-intents or equivalent. Document sample phrases. |
+| 9.4 | Deploy | Provide copy-paste iOS deploy command batch + notes for Xcode/EAS | README or ios-deploy.md contains working commands to produce a deployable iOS build from the Expo project. | Not Started |  | Include prebuild, run:ios, EAS options, HealthKit capability notes. |
 
 **Status Values:** Not Started | In Progress | Done | Blocked
 
@@ -172,6 +207,4 @@ All shared entities use mergeable/CRDT semantics so concurrent offline edits con
 
 ---
 
-**Build Agent Kickoff Note:** This SPEC.md is your tracker. Start with the next Not Started task (currently 0.2). Update this file after every merge. Reference task IDs in all PRs. Do not expand scope without updating the document. All UI must strictly follow Section 8 Premier UI/UX Guidelines. Architecture is local-first: on-device primary, authorized device sync, no central coordination server for shared care data.
-
-**Market & Feasibility sources:** Emergen Research, Fact.MR, competitor sites (CaringVillage, etc.), caregiver surveys (e.g., Caregiver Action Network 2026). Local-first patterns consistent with prior Response-Cell / Grant-Studio research (local SQLite, CRDT/mergeable/MESH sync, device pairing).
+**Build Agent Kickoff Note:** This SPEC.md is your tracker. Start with the next Not Started task (currently 9.1). Update this file after every merge. Reference task IDs in all PRs. For iOS native features, use development builds and include the deploy command batch from Section 4.1.
