@@ -61,97 +61,134 @@ export async function openSqliteStore(): Promise<Store> {
     }
   };
 
+  const sql = {
+    getMeta: await db.prepareAsync("SELECT value FROM meta WHERE key = ?"),
+    setMeta: await db.prepareAsync("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"),
+    getRecord: await db.prepareAsync("SELECT body FROM records WHERE id = ?"),
+    putRecord: await db.prepareAsync(
+      "INSERT INTO records (id, collection, body) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET collection = excluded.collection, body = excluded.body",
+    ),
+    listRecords: await db.prepareAsync("SELECT body FROM records WHERE collection = ?"),
+    putPackage: await db.prepareAsync(
+      "INSERT INTO packages (id, device_id, seq, body) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
+    ),
+    hasPackage: await db.prepareAsync("SELECT id FROM packages WHERE id = ?"),
+    maxSeq: await db.prepareAsync("SELECT COALESCE(MAX(seq), 0) AS seq FROM packages WHERE device_id = ?"),
+    packagesAfter: await db.prepareAsync("SELECT body FROM packages ORDER BY device_id, seq"),
+    heads: await db.prepareAsync("SELECT device_id, MAX(seq) AS seq FROM packages GROUP BY device_id"),
+    getPeer: await db.prepareAsync("SELECT body FROM peers WHERE device_id = ?"),
+    putPeer: await db.prepareAsync("INSERT INTO peers (device_id, body) VALUES (?, ?) ON CONFLICT(device_id) DO UPDATE SET body = excluded.body"),
+    listPeers: await db.prepareAsync("SELECT body FROM peers"),
+    putInvite: await db.prepareAsync("INSERT INTO invites (id, body) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body"),
+    getInvite: await db.prepareAsync("SELECT body FROM invites WHERE id = ?"),
+    appendAudit: await db.prepareAsync("INSERT INTO audit (id, body) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body"),
+    listAudit: await db.prepareAsync("SELECT body FROM audit"),
+  };
+
+  let chain: Promise<void> = Promise.resolve();
+  const run = <T>(work: () => Promise<T>) => {
+    const result = chain.then(work, work);
+    chain = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  };
+
+  async function all<T>(statement: SQLite.SQLiteStatement, ...params: SQLite.SQLiteBindValue[]) {
+    const result = await statement.executeAsync(...params);
+    return (await result.getAllAsync()) as T[];
+  }
+
+  async function write(statement: SQLite.SQLiteStatement, ...params: SQLite.SQLiteBindValue[]) {
+    await statement.executeAsync(...params);
+  }
+
   return {
     async getMeta(key) {
-      const rows = await db.getAllAsync<{ value: string }>("SELECT value FROM meta WHERE key = ?", key);
-      return rows[0] ? String(readBody(rows[0].value)) : null;
+      return run(async () => {
+        const rows = await all<{ value: string }>(sql.getMeta, key);
+        return rows[0] ? String(readBody(rows[0].value)) : null;
+      });
     },
     async setMeta(key, value) {
-      await db.runAsync("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", key, writeBody(value));
+      return run(() => write(sql.setMeta, key, writeBody(value)));
     },
     async getRecord(id) {
-      const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM records WHERE id = ?", id);
-      return rows[0] ? reviveRecord(readBody(rows[0].body) as CareRecord) : null;
+      return run(async () => {
+        const rows = await all<{ body: string }>(sql.getRecord, id);
+        return rows[0] ? reviveRecord(readBody(rows[0].body) as CareRecord) : null;
+      });
     },
     async putRecord(row) {
-      await db.runAsync(
-        "INSERT INTO records (id, collection, body) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET collection = excluded.collection, body = excluded.body",
-        row.id,
-        row.collection,
-        writeBody(row),
-      );
+      return run(() => write(sql.putRecord, row.id, row.collection, writeBody(row)));
     },
     async listRecords(collection) {
-      const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM records WHERE collection = ?", collection);
-      return rows.map((item) => reviveRecord(readBody(item.body) as CareRecord));
+      return run(async () => {
+        const rows = await all<{ body: string }>(sql.listRecords, collection);
+        return rows.map((item) => reviveRecord(readBody(item.body) as CareRecord));
+      });
     },
     async putPackage(row) {
-      await db.runAsync(
-        "INSERT INTO packages (id, device_id, seq, body) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
-        row.id,
-        row.deviceId,
-        row.seq,
-        writeBody(row),
-      );
+      return run(() => write(sql.putPackage, row.id, row.deviceId, row.seq, writeBody(row)));
     },
     async hasPackage(id) {
-      const rows = await db.getAllAsync<{ id: string }>("SELECT id FROM packages WHERE id = ?", id);
-      return rows.length > 0;
+      return run(async () => (await all<{ id: string }>(sql.hasPackage, id)).length > 0);
     },
     async maxSeq(deviceId) {
-      const rows = await db.getAllAsync<{ seq: number }>("SELECT COALESCE(MAX(seq), 0) AS seq FROM packages WHERE device_id = ?", deviceId);
-      return rows[0]?.seq ?? 0;
+      return run(async () => {
+        const rows = await all<{ seq: number }>(sql.maxSeq, deviceId);
+        return rows[0]?.seq ?? 0;
+      });
     },
     async packagesAfter(heads) {
-      const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM packages ORDER BY device_id, seq");
-      return rows
-        .map((item) => readBody(item.body) as PackageRow)
-        .filter((item) => item.seq > (heads[item.deviceId] ?? 0));
+      return run(async () => {
+        const rows = await all<{ body: string }>(sql.packagesAfter);
+        return rows
+          .map((item) => readBody(item.body) as PackageRow)
+          .filter((item) => item.seq > (heads[item.deviceId] ?? 0));
+      });
     },
     async heads() {
-      const rows = await db.getAllAsync<{ device_id: string; seq: number }>("SELECT device_id, MAX(seq) AS seq FROM packages GROUP BY device_id");
-      const map: Record<string, number> = {};
-      for (const row of rows) map[row.device_id] = row.seq;
-      return map;
+      return run(async () => {
+        const rows = await all<{ device_id: string; seq: number }>(sql.heads);
+        const map: Record<string, number> = {};
+        for (const row of rows) map[row.device_id] = row.seq;
+        return map;
+      });
     },
     async getPeer(deviceId) {
-      const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM peers WHERE device_id = ?", deviceId);
-      return rows[0] ? (readBody(rows[0].body) as PeerRow) : null;
+      return run(async () => {
+        const rows = await all<{ body: string }>(sql.getPeer, deviceId);
+        return rows[0] ? (readBody(rows[0].body) as PeerRow) : null;
+      });
     },
     async putPeer(row) {
-      await db.runAsync(
-        "INSERT INTO peers (device_id, body) VALUES (?, ?) ON CONFLICT(device_id) DO UPDATE SET body = excluded.body",
-        row.deviceId,
-        writeBody(row),
-      );
+      return run(() => write(sql.putPeer, row.deviceId, writeBody(row)));
     },
     async listPeers() {
-      const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM peers");
-      return rows
-        .map((item) => readBody(item.body) as PeerRow)
-        .sort((a, b) => a.pairedAt.localeCompare(b.pairedAt));
+      return run(async () => {
+        const rows = await all<{ body: string }>(sql.listPeers);
+        return rows.map((item) => readBody(item.body) as PeerRow).sort((a, b) => a.pairedAt.localeCompare(b.pairedAt));
+      });
     },
     async putInvite(row) {
-      await db.runAsync(
-        "INSERT INTO invites (id, body) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
-        row.id,
-        writeBody(row),
-      );
+      return run(() => write(sql.putInvite, row.id, writeBody(row)));
     },
     async getInvite(id) {
-      const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM invites WHERE id = ?", id);
-      return rows[0] ? (readBody(rows[0].body) as InviteRow) : null;
+      return run(async () => {
+        const rows = await all<{ body: string }>(sql.getInvite, id);
+        return rows[0] ? (readBody(rows[0].body) as InviteRow) : null;
+      });
     },
     async appendAudit(entry) {
-      await db.runAsync(
-        "INSERT INTO audit (id, body) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
-        entry.id,
-        writeBody(entry),
-      );
+      return run(() => write(sql.appendAudit, entry.id, writeBody(entry)));
     },
     async listAudit() {
-      const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM audit");
-      return rows.map((item) => readBody(item.body) as AuditEntry);
+      return run(async () => {
+        const rows = await all<{ body: string }>(sql.listAudit);
+        return rows.map((item) => readBody(item.body) as AuditEntry);
+      });
     },
   };
 }
