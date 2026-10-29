@@ -1,5 +1,9 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SQLite from "expo-sqlite";
-import type { CareRecord, InviteRow, PackageRow, PeerRow, Store } from "../mesh/store-types";
+import { openJson, randomVaultKey, sealJson } from "@/lib/mesh/seal.mjs";
+import type { AuditEntry, CareRecord, InviteRow, PackageRow, PeerRow, Store } from "../mesh/store-types";
+
+const VAULT_KEY = "plx-caregiver.vault";
 
 const SCHEMA = `
 PRAGMA journal_mode = WAL;
@@ -27,6 +31,10 @@ CREATE TABLE IF NOT EXISTS invites (
   id TEXT PRIMARY KEY NOT NULL,
   body TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS audit (
+  id TEXT PRIMARY KEY NOT NULL,
+  body TEXT NOT NULL
+);
 `;
 
 function reviveRecord(row: CareRecord): CareRecord {
@@ -38,30 +46,44 @@ function reviveRecord(row: CareRecord): CareRecord {
 export async function openSqliteStore(): Promise<Store> {
   const db = await SQLite.openDatabaseAsync("plx-caregiver.db");
   await db.execAsync(SCHEMA);
+  const existingVault = await AsyncStorage.getItem(VAULT_KEY);
+  const vault = existingVault && /^[0-9a-f]{64}$/i.test(existingVault) ? existingVault : randomVaultKey();
+  if (vault !== existingVault) await AsyncStorage.setItem(VAULT_KEY, vault);
+
+  const writeBody = (value: unknown) => JSON.stringify(sealJson(value, vault));
+  const readBody = (stored: string): unknown => {
+    try {
+      const parsed = JSON.parse(stored) as { v?: number; iv?: string; data?: string };
+      if (parsed && parsed.v === 1 && typeof parsed.iv === "string" && typeof parsed.data === "string") return openJson(parsed, vault);
+      return parsed;
+    } catch {
+      return stored;
+    }
+  };
 
   return {
     async getMeta(key) {
       const rows = await db.getAllAsync<{ value: string }>("SELECT value FROM meta WHERE key = ?", key);
-      return rows[0]?.value ?? null;
+      return rows[0] ? String(readBody(rows[0].value)) : null;
     },
     async setMeta(key, value) {
-      await db.runAsync("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", key, value);
+      await db.runAsync("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", key, writeBody(value));
     },
     async getRecord(id) {
       const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM records WHERE id = ?", id);
-      return rows[0] ? reviveRecord(JSON.parse(rows[0].body) as CareRecord) : null;
+      return rows[0] ? reviveRecord(readBody(rows[0].body) as CareRecord) : null;
     },
     async putRecord(row) {
       await db.runAsync(
         "INSERT INTO records (id, collection, body) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET collection = excluded.collection, body = excluded.body",
         row.id,
         row.collection,
-        JSON.stringify(row),
+        writeBody(row),
       );
     },
     async listRecords(collection) {
       const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM records WHERE collection = ?", collection);
-      return rows.map((item) => reviveRecord(JSON.parse(item.body) as CareRecord));
+      return rows.map((item) => reviveRecord(readBody(item.body) as CareRecord));
     },
     async putPackage(row) {
       await db.runAsync(
@@ -69,7 +91,7 @@ export async function openSqliteStore(): Promise<Store> {
         row.id,
         row.deviceId,
         row.seq,
-        JSON.stringify(row),
+        writeBody(row),
       );
     },
     async hasPackage(id) {
@@ -83,7 +105,7 @@ export async function openSqliteStore(): Promise<Store> {
     async packagesAfter(heads) {
       const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM packages ORDER BY device_id, seq");
       return rows
-        .map((item) => JSON.parse(item.body) as PackageRow)
+        .map((item) => readBody(item.body) as PackageRow)
         .filter((item) => item.seq > (heads[item.deviceId] ?? 0));
     },
     async heads() {
@@ -94,31 +116,42 @@ export async function openSqliteStore(): Promise<Store> {
     },
     async getPeer(deviceId) {
       const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM peers WHERE device_id = ?", deviceId);
-      return rows[0] ? (JSON.parse(rows[0].body) as PeerRow) : null;
+      return rows[0] ? (readBody(rows[0].body) as PeerRow) : null;
     },
     async putPeer(row) {
       await db.runAsync(
         "INSERT INTO peers (device_id, body) VALUES (?, ?) ON CONFLICT(device_id) DO UPDATE SET body = excluded.body",
         row.deviceId,
-        JSON.stringify(row),
+        writeBody(row),
       );
     },
     async listPeers() {
       const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM peers");
       return rows
-        .map((item) => JSON.parse(item.body) as PeerRow)
+        .map((item) => readBody(item.body) as PeerRow)
         .sort((a, b) => a.pairedAt.localeCompare(b.pairedAt));
     },
     async putInvite(row) {
       await db.runAsync(
         "INSERT INTO invites (id, body) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
         row.id,
-        JSON.stringify(row),
+        writeBody(row),
       );
     },
     async getInvite(id) {
       const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM invites WHERE id = ?", id);
-      return rows[0] ? (JSON.parse(rows[0].body) as InviteRow) : null;
+      return rows[0] ? (readBody(rows[0].body) as InviteRow) : null;
+    },
+    async appendAudit(entry) {
+      await db.runAsync(
+        "INSERT INTO audit (id, body) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
+        entry.id,
+        writeBody(entry),
+      );
+    },
+    async listAudit() {
+      const rows = await db.getAllAsync<{ body: string }>("SELECT body FROM audit");
+      return rows.map((item) => readBody(item.body) as AuditEntry);
     },
   };
 }

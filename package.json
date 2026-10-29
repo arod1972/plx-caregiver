@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@noble/ciphers": "^2.4.0",
     "@noble/curves": "^2.4.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~58.0.21",
@@ -38,7 +39,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test lib/mesh/mesh.test.mjs lib/mesh/calendar.test.mjs lib/mesh/medications.test.mjs lib/mesh/tasks.test.mjs lib/mesh/posts.test.mjs"
+    "test": "node --test lib/mesh/mesh.test.mjs lib/mesh/calendar.test.mjs lib/mesh/medications.test.mjs lib/mesh/tasks.test.mjs lib/mesh/posts.test.mjs lib/mesh/security.test.mjs"
   },
   "private": true
 }
