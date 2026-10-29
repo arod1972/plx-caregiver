@@ -3,7 +3,7 @@ import { careStore } from "@/lib/care-store";
 import { deleteMedication, listMedications, saveMedication } from "@/lib/mesh/medications.mjs";
 import { ensureDevice, readDevice, readSharing, resolveAccess } from "@/lib/mesh/repository.mjs";
 
-export type MedicationItem = { id: string; name: string; time: string };
+export type MedicationItem = { id: string; name: string; time: string; dosage: string; refillOn: string };
 
 type Phase = "loading" | "ready" | "error";
 
@@ -35,7 +35,7 @@ export function useMeds() {
   }, [refresh]);
 
   const save = useCallback(
-    async (input: { id?: string; name: string; time: string }) => {
+    async (input: { id?: string; name: string; time: string; dosage: string; refillOn: string }) => {
       const db = await careStore();
       await saveMedication(db, input);
       setNotice("Saved on this device. It is on the calendar.");
