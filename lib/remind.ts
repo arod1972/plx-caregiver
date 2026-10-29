@@ -72,6 +72,40 @@ export async function notifyAssignment(task: { id: string; title: string; stamp:
   }
 }
 
+export async function remindDose(med: { id: string; name: string; at: number }) {
+  try {
+    const db = await careStore();
+    const stampKey = `notify.med.at.${med.id}`;
+    if ((await db.getMeta(stampKey)) === String(med.at)) return false;
+    if (!(await allowed())) {
+      await db.setMeta(stampKey, String(med.at));
+      return false;
+    }
+    const previous = await db.getMeta(`notify.med.${med.id}`);
+    if (previous) await Notifications.cancelScheduledNotificationAsync(previous).catch(() => undefined);
+    const id = await Notifications.scheduleNotificationAsync({
+      content: { title: med.name, body: "Time for a dose" },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(med.at) },
+    });
+    await db.setMeta(`notify.med.${med.id}`, id);
+    await db.setMeta(stampKey, String(med.at));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function clearDoseReminder(medId: string) {
+  try {
+    const db = await careStore();
+    const previous = await db.getMeta(`notify.med.${medId}`);
+    if (previous) await Notifications.cancelScheduledNotificationAsync(previous).catch(() => undefined);
+    await db.setMeta(`notify.med.${medId}`, "");
+    await db.setMeta(`notify.med.at.${medId}`, "");
+  } catch {
+    return;
+  }
+}
 export async function clearAssignmentNotice(taskId: string) {
   try {
     const db = await careStore();

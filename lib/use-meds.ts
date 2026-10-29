@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { careStore } from "@/lib/care-store";
-import { deleteMedication, listMedications, saveMedication } from "@/lib/mesh/medications.mjs";
+import { adherence, deleteMedication, nextDoseAt, saveMedication, markTaken } from "@/lib/mesh/medications.mjs";
 import { ensureDevice, readDevice, readSharing, resolveAccess } from "@/lib/mesh/repository.mjs";
+import { clearDoseReminder, remindDose } from "@/lib/remind";
 
-export type MedicationItem = { id: string; name: string; time: string; dosage: string; refillOn: string };
+export type MedicationItem = {
+  id: string;
+  name: string;
+  time: string;
+  dosage: string;
+  refillOn: string;
+  taken: boolean;
+  takenAt: string;
+  weekTaken: number;
+  weekDays: number;
+};
 
 type Phase = "loading" | "ready" | "error";
 
@@ -21,10 +32,20 @@ export function useMeds() {
     const device = await readDevice(db);
     if (!device) throw new Error("This device is not ready");
     const access = resolveAccess(await readSharing(db), device.role, device.id);
+    const rows = access.view || access.edit ? await adherence(db) : [];
     setCanEdit(access.edit);
     setCanView(access.view || access.edit);
-    setItems(await listMedications(db));
+    setItems(rows);
     setPhase("ready");
+    const upcoming = rows
+      .map((item) => ({ id: item.id, name: item.name, at: nextDoseAt(item.time) }))
+      .filter((item): item is { id: string; name: string; at: number } => typeof item.at === "number");
+    if (upcoming.length) {
+      void Promise.race([
+        Promise.all(upcoming.map((item) => remindDose(item))),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
+    }
   }, []);
 
   useEffect(() => {
@@ -38,7 +59,7 @@ export function useMeds() {
     async (input: { id?: string; name: string; time: string; dosage: string; refillOn: string }) => {
       const db = await careStore();
       await saveMedication(db, input);
-      setNotice("Saved on this device. It is on the calendar.");
+      setNotice("Saved on this device. A reminder is set for the next dose.");
       await refresh();
     },
     [refresh],
@@ -48,11 +69,22 @@ export function useMeds() {
     async (id: string) => {
       const db = await careStore();
       await deleteMedication(db, id);
+      await clearDoseReminder(id);
       setNotice("Removed from this device.");
       await refresh();
     },
     [refresh],
   );
 
-  return { phase, message, items, canEdit, canView, notice, save, remove };
+  const take = useCallback(
+    async (id: string) => {
+      const db = await careStore();
+      await markTaken(db, id);
+      setNotice("Marked taken on this device.");
+      await refresh();
+    },
+    [refresh],
+  );
+
+  return { phase, message, items, canEdit, canView, notice, save, remove, take };
 }
