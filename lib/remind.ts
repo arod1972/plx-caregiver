@@ -50,3 +50,36 @@ export async function cancelReminder(eventId: string) {
     return;
   }
 }
+
+export async function notifyAssignment(task: { id: string; title: string; stamp: string }) {
+  try {
+    const db = await careStore();
+    const key = `notify.task.${task.id}`;
+    if ((await db.getMeta(key)) === task.stamp) return false;
+    if (!(await allowed())) {
+      await db.setMeta(key, task.stamp);
+      return false;
+    }
+    const id = await Notifications.scheduleNotificationAsync({
+      content: { title: task.title, body: "Assigned to you" },
+      trigger: null,
+    });
+    await db.setMeta(key, task.stamp);
+    await db.setMeta(`notify.task.id.${task.id}`, id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function clearAssignmentNotice(taskId: string) {
+  try {
+    const db = await careStore();
+    const previous = await db.getMeta(`notify.task.id.${taskId}`);
+    if (previous) await Notifications.cancelScheduledNotificationAsync(previous).catch(() => undefined);
+    await db.setMeta(`notify.task.${taskId}`, "");
+    await db.setMeta(`notify.task.id.${taskId}`, "");
+  } catch {
+    return;
+  }
+}

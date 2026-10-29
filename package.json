@@ -37,7 +37,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test lib/mesh/mesh.test.mjs lib/mesh/calendar.test.mjs lib/mesh/medications.test.mjs"
+    "test": "node --test lib/mesh/mesh.test.mjs lib/mesh/calendar.test.mjs lib/mesh/medications.test.mjs lib/mesh/tasks.test.mjs"
   },
   "private": true
 }
