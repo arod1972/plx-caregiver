@@ -86,3 +86,29 @@ declare module "@/lib/mesh/medications.mjs" {
   export function deleteMedication(store: unknown, id: string): Promise<void>;
   export function listMedications(store: unknown): Promise<Medication[]>;
 }
+
+declare module "@/lib/mesh/tasks.mjs" {
+  export type TaskStatus = "open" | "assigned" | "done";
+  export type TaskItem = {
+    id: string;
+    title: string;
+    notes: string;
+    assignee: string;
+    assigneeName: string;
+    status: TaskStatus;
+    dueOn: string;
+    completedAt: string;
+    completedBy: string;
+    assignedAt: string;
+  };
+  export function listCircle(store: unknown): Promise<Array<{ id: string; name: string }>>;
+  export function listTasks(store: unknown): Promise<TaskItem[]>;
+  export function saveTask(
+    store: unknown,
+    input: { id?: string; title: string; notes?: string; assignee?: string; dueOn?: string },
+  ): Promise<TaskItem | undefined>;
+  export function completeTask(store: unknown, id: string): Promise<TaskItem | undefined>;
+  export function reopenTask(store: unknown, id: string): Promise<TaskItem | undefined>;
+  export function removeTask(store: unknown, id: string): Promise<void>;
+}
+
