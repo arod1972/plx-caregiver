@@ -15,7 +15,7 @@ struct ScanView: View {
         let palette = Palette.current(scheme)
         ZStack(alignment: .bottom) {
             if capture.cameraOn {
-                LabelPreview(session: capture.session)
+                LabelPreview(session: capture.session, front: capture.usingFront)
                     .ignoresSafeArea()
             } else {
                 palette.canvas.ignoresSafeArea()
@@ -24,6 +24,11 @@ struct ScanView: View {
                 Text(capture.cameraOn ? capture.hint : "This simulator has no camera. Paste the words from the label.")
                     .font(.subheadline)
                     .foregroundStyle(palette.ink)
+                if capture.usingFront {
+                    Text("The phone can lie flat. Hold the bottle above the front camera.")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.muted)
+                }
                 if !capture.cameraOn {
                     CareField(label: "Words on the label", text: $typed, prompt: "Lisinopril 10 mg\nTake 1 tablet by mouth daily")
                     MetalButton(title: "Read the label", filled: false) {
@@ -45,6 +50,23 @@ struct ScanView: View {
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
+        }
+        .overlay(alignment: .topTrailing) {
+            if capture.cameraOn {
+                Button(action: capture.flip) {
+                    Label(capture.usingFront ? "Front" : "Back", systemImage: "arrow.triangle.2.circlepath.camera")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(palette.onSage)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(palette.sage)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 16)
+                .padding(.top, 8)
+                .accessibilityLabel(capture.usingFront ? "Switch to the back camera" : "Switch to the front camera")
+            }
         }
         .navigationTitle("Scan a label")
         .navigationBarTitleDisplayMode(.inline)
