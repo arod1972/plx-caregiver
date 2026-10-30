@@ -40,6 +40,11 @@ yarn-error.*
 /ios
 /android
 
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
 # on-device OCR runtime, copied from node_modules
 /public/ocr/
 /eng.traineddata
