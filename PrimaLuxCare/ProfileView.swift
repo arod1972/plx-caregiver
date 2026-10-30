@@ -31,7 +31,7 @@ struct ProfileView: View {
                 HStack(spacing: 16) {
                     CareSeal(size: 56)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("PRIMALUX")
+                        Text("GUARDIAN STEWARD")
                             .font(.caption.weight(.semibold))
                             .tracking(1.8)
                             .foregroundStyle(palette.metal)

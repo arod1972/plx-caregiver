@@ -54,12 +54,12 @@ private func styleTabs(_ scheme: ColorScheme) {
     let appearance = UITabBarAppearance()
     appearance.configureWithOpaqueBackground()
     appearance.backgroundColor = dark
-        ? UIColor(red: 0.118, green: 0.145, blue: 0.133, alpha: 1)
-        : UIColor(red: 0.988, green: 0.976, blue: 0.957, alpha: 1)
+        ? UIColor(red: 0.110, green: 0.110, blue: 0.118, alpha: 1)
+        : UIColor(red: 0.949, green: 0.949, blue: 0.969, alpha: 1)
     let sage = dark
-        ? UIColor(red: 0.616, green: 0.812, blue: 0.729, alpha: 1)
-        : UIColor(red: 0.165, green: 0.345, blue: 0.286, alpha: 1)
-    let metal = UIColor(red: 0.608, green: 0.478, blue: 0.298, alpha: 1)
+        ? UIColor(red: 0.545, green: 0.706, blue: 0.843, alpha: 1)
+        : UIColor(red: 0.086, green: 0.196, blue: 0.310, alpha: 1)
+    let metal = UIColor(red: 0.557, green: 0.600, blue: 0.643, alpha: 1)
     appearance.stackedLayoutAppearance.selected.iconColor = sage
     appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: sage]
     appearance.stackedLayoutAppearance.normal.iconColor = metal

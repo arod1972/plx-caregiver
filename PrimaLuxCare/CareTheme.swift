@@ -13,29 +13,29 @@ struct Palette {
     let metalLight: Color
 
     static let light = Palette(
-        canvas: Color(red: 0.929, green: 0.894, blue: 0.847),
-        paper: Color(red: 0.988, green: 0.976, blue: 0.957),
-        ink: Color(red: 0.122, green: 0.169, blue: 0.153),
-        muted: Color(red: 0.404, green: 0.369, blue: 0.333),
-        line: Color(red: 0.886, green: 0.855, blue: 0.808),
-        sage: Color(red: 0.165, green: 0.345, blue: 0.286),
-        sageSoft: Color(red: 0.847, green: 0.914, blue: 0.875),
-        onSage: Color(red: 0.973, green: 0.984, blue: 0.973),
-        metal: Color(red: 0.608, green: 0.478, blue: 0.298),
-        metalLight: Color(red: 0.918, green: 0.843, blue: 0.675)
+        canvas: Color(red: 0.949, green: 0.949, blue: 0.969),
+        paper: Color(red: 1, green: 1, blue: 1),
+        ink: Color(red: 0.110, green: 0.110, blue: 0.118),
+        muted: Color(red: 0.388, green: 0.388, blue: 0.400),
+        line: Color(red: 0.898, green: 0.898, blue: 0.918),
+        sage: Color(red: 0.086, green: 0.196, blue: 0.310),
+        sageSoft: Color(red: 0.902, green: 0.933, blue: 0.957),
+        onSage: Color(red: 1, green: 1, blue: 1),
+        metal: Color(red: 0.557, green: 0.600, blue: 0.643),
+        metalLight: Color(red: 0.910, green: 0.933, blue: 0.949)
     )
 
     static let dark = Palette(
-        canvas: Color(red: 0.067, green: 0.082, blue: 0.075),
-        paper: Color(red: 0.118, green: 0.145, blue: 0.133),
-        ink: Color(red: 0.953, green: 0.937, blue: 0.910),
-        muted: Color(red: 0.710, green: 0.675, blue: 0.627),
-        line: Color(red: 0.196, green: 0.235, blue: 0.216),
-        sage: Color(red: 0.616, green: 0.812, blue: 0.729),
-        sageSoft: Color(red: 0.141, green: 0.220, blue: 0.188),
-        onSage: Color(red: 0.078, green: 0.129, blue: 0.110),
-        metal: Color(red: 0.722, green: 0.608, blue: 0.420),
-        metalLight: Color(red: 0.890, green: 0.784, blue: 0.545)
+        canvas: Color(red: 0.055, green: 0.055, blue: 0.063),
+        paper: Color(red: 0.110, green: 0.110, blue: 0.118),
+        ink: Color(red: 0.949, green: 0.949, blue: 0.969),
+        muted: Color(red: 0.596, green: 0.596, blue: 0.624),
+        line: Color(red: 0.220, green: 0.220, blue: 0.227),
+        sage: Color(red: 0.545, green: 0.706, blue: 0.843),
+        sageSoft: Color(red: 0.102, green: 0.149, blue: 0.196),
+        onSage: Color(red: 0.055, green: 0.086, blue: 0.118),
+        metal: Color(red: 0.773, green: 0.804, blue: 0.831),
+        metalLight: Color(red: 0.957, green: 0.969, blue: 0.973)
     )
 
     static func current(_ scheme: ColorScheme) -> Palette {
