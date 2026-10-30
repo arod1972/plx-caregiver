@@ -89,6 +89,12 @@ struct MedsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(dose.name).font(.headline)
                         Text(detail(dose)).font(.caption).foregroundStyle(palette.muted)
+                        if !dose.instructions.isEmpty {
+                            Text(dose.instructions)
+                                .font(.caption)
+                                .foregroundStyle(palette.muted)
+                                .lineLimit(2)
+                        }
                         Text("This week \(CareClock.weekTaken(dose)) of 7")
                             .font(.caption2)
                             .foregroundStyle(palette.metal)
@@ -131,6 +137,11 @@ struct DoseEditor: View {
     @Environment(\.colorScheme) private var scheme
     @State private var name = ""
     @State private var dosage = ""
+    @State private var instructions = ""
+    @State private var rxNumber = ""
+    @State private var quantity = ""
+    @State private var refills = ""
+    @State private var pharmacy = ""
     @State private var time = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: .now) ?? .now
     @State private var hasRefill = false
     @State private var refill = Calendar.current.date(byAdding: .month, value: 1, to: .now) ?? .now
@@ -141,6 +152,11 @@ struct DoseEditor: View {
             CareScreen {
                 CareField(label: "Name", text: $name, prompt: "Lisinopril")
                 CareField(label: "Dosage", text: $dosage, prompt: "10 mg")
+                CareField(label: "Instructions", text: $instructions, prompt: "Take 1 tablet by mouth daily")
+                CareField(label: "Rx number", text: $rxNumber, prompt: "Optional")
+                CareField(label: "Quantity", text: $quantity, prompt: "30")
+                CareField(label: "Refills", text: $refills, prompt: "3")
+                CareField(label: "Pharmacy", text: $pharmacy, prompt: "Optional")
                 DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute)
                 Toggle("Refill date", isOn: $hasRefill)
                 if hasRefill {
@@ -165,6 +181,11 @@ struct DoseEditor: View {
             guard let dose else { return }
             name = dose.name
             dosage = dose.dosage
+            instructions = dose.instructions
+            rxNumber = dose.rxNumber
+            quantity = dose.quantityText
+            refills = dose.refillsText
+            pharmacy = dose.pharmacy
             var parts = DateComponents()
             parts.hour = dose.timeMinutes / 60
             parts.minute = dose.timeMinutes % 60
@@ -187,9 +208,24 @@ struct DoseEditor: View {
             dose.dosage = cleanDose
             dose.timeMinutes = minutes
             dose.refillOn = hasRefill ? refill : nil
+            dose.instructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
+            dose.rxNumber = rxNumber.trimmingCharacters(in: .whitespaces)
+            dose.quantityText = quantity.trimmingCharacters(in: .whitespaces)
+            dose.refillsText = refills.trimmingCharacters(in: .whitespaces)
+            dose.pharmacy = pharmacy.trimmingCharacters(in: .whitespacesAndNewlines)
             saved = dose
         } else {
-            let created = Dose(name: cleanName, dosage: cleanDose, timeMinutes: minutes, refillOn: hasRefill ? refill : nil)
+            let created = Dose(
+                name: cleanName,
+                dosage: cleanDose,
+                timeMinutes: minutes,
+                refillOn: hasRefill ? refill : nil,
+                instructions: instructions.trimmingCharacters(in: .whitespacesAndNewlines),
+                rxNumber: rxNumber.trimmingCharacters(in: .whitespaces),
+                quantity: quantity.trimmingCharacters(in: .whitespaces),
+                refills: refills.trimmingCharacters(in: .whitespaces),
+                pharmacy: pharmacy.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
             context.insert(created)
             saved = created
         }
