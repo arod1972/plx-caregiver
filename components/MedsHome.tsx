@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, EmptyState, Field, Masthead, Screen, useChrome } from "@/components/ui";
+import { ActionButton, AppText, Card, EmptyState, Field, Group, Mark, PageHeader, Row, Screen } from "@/components/ui";
 import { useMeds, type MedicationItem } from "@/lib/use-meds";
 
 function timeLabel(time: string) {
@@ -29,7 +29,6 @@ function dateLabel(value: string) {
 export function MedsHome() {
   const meds = useMeds();
   const { parentMode, space } = useTheme();
-  const chrome = useChrome("snug");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -55,7 +54,20 @@ export function MedsHome() {
 
   return (
     <Screen>
-      <Masthead title="Medications" lede={parentMode ? undefined : "Name, dose, and today's time."} />
+      <PageHeader
+        eyebrow="Every day"
+        title="Medications"
+        lede={parentMode ? undefined : "Tap the circle when a dose is taken."}
+        onAdd={
+          meds.phase === "ready" && meds.canView && meds.canEdit && !draft
+            ? () => {
+                setFormError(null);
+                setDraft({ name: "", time: "08:00", dosage: "", refillOn: "" });
+              }
+            : undefined
+        }
+        addLabel="Add a medication"
+      />
       <ReadAloud text={spoken} />
       {meds.phase === "loading" ? <AppText tone="muted">Opening medications.</AppText> : null}
       {meds.phase === "error" ? (
@@ -93,49 +105,58 @@ export function MedsHome() {
         </Card>
       ) : null}
       {meds.phase === "ready" && meds.canView && !draft && meds.canEdit ? (
-        <ActionButton
-          label="Add a medication"
-          onPress={() => {
-            setFormError(null);
-            setDraft({ name: "", time: "08:00", dosage: "", refillOn: "" });
-          }}
-        />
-      ) : null}
-      {meds.phase === "ready" && meds.canView && !draft && meds.canEdit ? (
-        <ActionButton label="Scan a label" emphasis="quiet" onPress={() => router.push("/scan")} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Scan a label" onPress={() => router.push("/scan")}>
+          <AppText variant="label" tone="accent">Scan a label</AppText>
+        </Pressable>
       ) : null}
       {meds.phase === "ready" && meds.canView && !draft && meds.items.length === 0 ? (
-        <EmptyState title="No medications" body="Doses you add will appear here." icon="pill" />
+        <Group>
+          <View style={{ padding: space[4] }}>
+            <EmptyState title="No medications" body="Add a dose, or scan the label." icon="pill" />
+          </View>
+        </Group>
       ) : null}
       {meds.phase === "ready" && meds.canView && !draft && meds.items.length > 0 ? (
-        <View style={{ gap: space[4] }}>
-          {meds.items.map((item: MedicationItem) => (
-            <View key={item.id} style={[chrome, { gap: space[4] }]}>
-              <Pressable
-                accessibilityRole={meds.canEdit ? "button" : "text"}
-                accessibilityLabel={`${item.name}, ${item.dosage}, every day at ${timeLabel(item.time)}`}
-                disabled={!meds.canEdit}
-                onPress={() => {
-                  setFormError(null);
-                  setDraft({ id: item.id, name: item.name, time: item.time, dosage: item.dosage, refillOn: item.refillOn });
-                }}
-              >
-                <AppText variant="caption" tone="faint">
-                  Every day · {timeLabel(item.time)}
-                </AppText>
+        <Group>
+          {meds.items.map((item: MedicationItem, index) => (
+            <Row
+              key={item.id}
+              last={index === meds.items.length - 1}
+              label={meds.canEdit ? `Edit ${item.name}` : item.name}
+              onPress={
+                meds.canEdit
+                  ? () => {
+                      setFormError(null);
+                      setDraft({ id: item.id, name: item.name, time: item.time, dosage: item.dosage, refillOn: item.refillOn });
+                    }
+                  : undefined
+              }
+            >
+              <View style={{ width: 76 }}>
+                <AppText variant="label">{timeLabel(item.time)}</AppText>
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
                 <AppText variant="heading">{item.name}</AppText>
-                {item.dosage ? <AppText tone="muted">{item.dosage}</AppText> : null}
+                <AppText variant="caption" tone="muted">
+                  {[item.dosage, item.taken ? takenLabel(item.takenAt) : "Not taken yet"].filter(Boolean).join(" · ")}
+                </AppText>
                 {item.refillOn ? <AppText variant="caption" tone="faint">Refill {dateLabel(item.refillOn)}</AppText> : null}
                 <AppText variant="caption" tone="faint">
-                  {item.taken ? takenLabel(item.takenAt) : "Not taken yet"} · This week {item.weekTaken} of {item.weekDays}
+                  This week {item.weekTaken} of {item.weekDays}
                 </AppText>
-              </Pressable>
-              {meds.canEdit && !item.taken ? (
-                <ActionButton label="Mark taken" onPress={() => meds.take(item.id).catch((error: unknown) => setFormError(error instanceof Error ? error.message : "The dose could not be marked."))} />
-              ) : null}
-            </View>
+              </View>
+              <Mark
+                done={item.taken}
+                label={item.taken ? `${item.name} taken` : `Mark ${item.name} taken`}
+                onPress={
+                  meds.canEdit && !item.taken
+                    ? () => meds.take(item.id).catch((error: unknown) => setFormError(error instanceof Error ? error.message : "The dose could not be marked."))
+                    : undefined
+                }
+              />
+            </Row>
           ))}
-        </View>
+        </Group>
       ) : null}
       {formError && !draft ? <AppText>{formError}</AppText> : null}
       {meds.notice ? (

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Masthead, Screen, SectionLabel, useChrome } from "@/components/ui";
+import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Group, PageHeader, Row, Screen } from "@/components/ui";
 import { localStarts } from "@/lib/mesh/calendar.mjs";
 import { useCalendar, type CalendarItem } from "@/lib/use-calendar";
 
@@ -37,6 +37,21 @@ function timeLabel(item: CalendarItem) {
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(item.occursAt);
 }
 
+function weekOf(anchor: number) {
+  const start = new Date(anchor);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - start.getDay());
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date.getTime();
+  });
+}
+
+function sameDay(a: number, b: number) {
+  return dayKey(a) === dayKey(b);
+}
+
 function todayDate() {
   const date = new Date();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -65,10 +80,12 @@ type Draft = {
 
 export function CalendarHome() {
   const calendar = useCalendar();
-  const { parentMode, space } = useTheme();
-  const chrome = useChrome("snug");
+  const { parentMode, colors, space, type, fontFamily } = useTheme();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selected, setSelected] = useState(() => Date.now());
+  const days = weekOf(Date.now());
+  const visible = calendar.items.filter((item) => sameDay(item.occursAt, selected));
 
   const openNew = () => {
     setFormError(null);
@@ -112,10 +129,12 @@ export function CalendarHome() {
 
   return (
     <Screen>
-      <Masthead
-        date={dayLabel(Date.now())}
-        title="Calendar"
-        lede={parentMode ? undefined : "Appointments, visits, and dates."}
+      <PageHeader
+        eyebrow={dayLabel(Date.now())}
+        title="Today"
+        lede={parentMode ? undefined : "Appointments, visits, and doses."}
+        onAdd={calendar.phase === "ready" && calendar.canView && calendar.canEdit && !draft ? openNew : undefined}
+        addLabel="Add an event"
       />
       <ReadAloud text={spoken} />
       {calendar.phase === "loading" ? <AppText tone="muted">Opening the calendar.</AppText> : null}
@@ -157,37 +176,72 @@ export function CalendarHome() {
           <ActionButton label="Close" emphasis="quiet" onPress={() => setDraft(null)} />
         </Card>
       ) : null}
-      {calendar.phase === "ready" && calendar.canView && !draft && calendar.canEdit ? (
-        <ActionButton label="Add an event" onPress={openNew} />
-      ) : null}
-      {calendar.phase === "ready" && calendar.canView && !draft && calendar.items.length === 0 ? (
-        <EmptyState title="Nothing scheduled" body="Appointments and visits will appear here." icon="calendar" />
-      ) : null}
-      {calendar.phase === "ready" && calendar.canView && !draft && calendar.items.length > 0 ? (
-        <View style={{ gap: space[4] }}>
-          {calendar.items.map((item, index) => {
-            const showDay = index === 0 || dayKey(item.occursAt) !== dayKey(calendar.items[index - 1].occursAt);
+      {calendar.phase === "ready" && calendar.canView && !draft ? (
+        <View style={{ flexDirection: "row", gap: space[1] }}>
+          {days.map((day) => {
+            const active = sameDay(day, selected);
+            const today = sameDay(day, Date.now());
+            const busy = calendar.items.some((item) => sameDay(item.occursAt, day));
+            const letter = new Intl.DateTimeFormat("en-US", { weekday: "narrow" }).format(day);
             return (
-              <View key={`${item.id}-${item.occursAt}`} style={{ gap: space[2] }}>
-                {showDay ? <SectionLabel>{dayLabel(item.occursAt)}</SectionLabel> : null}
-                <Pressable
-                  accessibilityRole={calendar.canEdit && item.kind !== "med" ? "button" : "text"}
-                  accessibilityLabel={`${item.title}, ${kindLabel(item.kind)}`}
-                  disabled={!calendar.canEdit || item.kind === "med"}
-                  onPress={() => openEdit(item)}
-                  style={({ pressed }) => [chrome, pressed && calendar.canEdit && item.kind !== "med" ? { opacity: 0.92 } : null]}
-                >
-                  <AppText variant="caption" tone="faint">
-                    {timeLabel(item)} · {kindLabel(item.kind)}
-                    {item.repeat === "weekly" ? " · Every week" : item.repeat === "monthly" ? " · Every month" : item.repeat === "daily" ? " · Every day" : ""}
-                  </AppText>
-                  <AppText variant="heading">{item.title}</AppText>
-                  {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
-                </Pressable>
-              </View>
+              <Pressable
+                key={day}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={dayLabel(day)}
+                onPress={() => setSelected(day)}
+                style={{
+                  flex: 1,
+                  minHeight: 64,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4,
+                  borderRadius: 16,
+                  backgroundColor: active ? colors.accent : "transparent",
+                }}
+              >
+                <AppText variant="caption" tone={active ? "accentInk" : "muted"} style={{ fontSize: Math.min(type.caption, 13) }}>
+                  {letter}
+                </AppText>
+                <AppText variant="label" tone={active ? "accentInk" : "ink"} style={{ fontFamily, fontWeight: today ? "700" : "600" }}>
+                  {new Date(day).getDate()}
+                </AppText>
+                <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: busy ? (active ? colors.accentInk : colors.accent) : "transparent" }} />
+              </Pressable>
             );
           })}
         </View>
+      ) : null}
+      {calendar.phase === "ready" && calendar.canView && !draft && visible.length === 0 ? (
+        <Group>
+          <View style={{ padding: space[4] }}>
+            <EmptyState title="Nothing scheduled" body={`${dayLabel(selected)} is clear.`} icon="calendar" />
+          </View>
+        </Group>
+      ) : null}
+      {calendar.phase === "ready" && calendar.canView && !draft && visible.length > 0 ? (
+        <Group>
+          {visible.map((item, index) => (
+            <Row
+              key={`${item.id}-${item.occursAt}`}
+              last={index === visible.length - 1}
+              label={calendar.canEdit && item.kind !== "med" ? item.title : undefined}
+              onPress={calendar.canEdit && item.kind !== "med" ? () => openEdit(item) : undefined}
+            >
+              <View style={{ width: 76 }}>
+                <AppText variant="label">{timeLabel(item)}</AppText>
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <AppText variant="heading">{item.title}</AppText>
+                <AppText variant="caption" tone="muted">
+                  {kindLabel(item.kind)}
+                  {item.repeat === "weekly" ? " · Every week" : item.repeat === "monthly" ? " · Every month" : item.repeat === "daily" ? " · Every day" : ""}
+                </AppText>
+                {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
+              </View>
+            </Row>
+          ))}
+        </Group>
       ) : null}
       {calendar.notice ? (
         <AppText variant="caption" tone="faint">

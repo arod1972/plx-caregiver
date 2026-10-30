@@ -1,36 +1,40 @@
 import { router } from "expo-router";
+import { View } from "react-native";
 
 import { ThisDevice } from "@/components/ThisDevice";
 import { useTheme } from "@/components/theme";
-import { ActionButton, AppText, Card, ChoiceGroup, Masthead, Screen, textSizeOptions } from "@/components/ui";
+import { AppText, Card, ChoiceGroup, Group, PageHeader, Row, Screen, textSizeOptions } from "@/components/ui";
 
 export default function ProfileScreen() {
   const { preference, setPreference, textSize, setTextSize, parentMode, setParentMode, space } = useTheme();
 
   return (
     <Screen>
-      <Masthead
+      <PageHeader
         title="Profile"
-        lede={parentMode ? "Large text is on. Each screen can be read aloud." : "Appearance, text size, and this device."}
+        lede={parentMode ? "Large text is on. Each screen can be read aloud." : "This phone, appearance, and what stays private."}
       />
       <Card>
         <AppText variant="label">Privacy</AppText>
-        <AppText>Care stays on this device. Nothing is sold.</AppText>
+        <AppText>Care stays on this device. Nothing is sold. The circle works offline.</AppText>
       </Card>
-      <AppText variant="caption" tone="faint">
-        Works offline. Sync when you exchange updates.
-      </AppText>
       <ThisDevice />
-      <Card style={{ gap: space[4] }}>
-        <AppText variant="heading">Apple Health</AppText>
-        <AppText tone="muted">Steps, heart rate, and sleep. Only after you allow it, and only on this iPhone.</AppText>
-        <ActionButton label="Apple Health" emphasis="quiet" onPress={() => router.push("/health")} />
-      </Card>
-      <Card style={{ gap: space[4] }}>
-        <AppText variant="heading">Hands-off</AppText>
-        <AppText tone="muted">On iPhone, Siri can mark a dose, check the next medication, or give a short status. The screens do the same things.</AppText>
-        <ActionButton label="Hands-off" emphasis="quiet" onPress={() => router.push("/hands-off")} />
-      </Card>
+      <Group>
+        <Row label="Apple Health" onPress={() => router.push("/health")}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText variant="heading">Apple Health</AppText>
+            <AppText variant="caption" tone="muted">Steps, heart rate, and sleep. Only after you allow it.</AppText>
+          </View>
+          <AppText tone="accent">Open</AppText>
+        </Row>
+        <Row last label="Hands-off" onPress={() => router.push("/hands-off")}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText variant="heading">Hands-off</AppText>
+            <AppText variant="caption" tone="muted">Siri can mark a dose or read what is next.</AppText>
+          </View>
+          <AppText tone="accent">Open</AppText>
+        </Row>
+      </Group>
       <Card style={{ gap: space[6] }}>
         <ChoiceGroup
           label="Parent mode"

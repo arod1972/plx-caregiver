@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Masthead, Screen, SectionLabel, useChrome } from "@/components/ui";
+import { ActionButton, AppText, Card, ChoiceGroup, EmptyState, Field, Group, Mark, PageHeader, Row, Screen, SectionLabel } from "@/components/ui";
 import { useTasks, type TaskItem } from "@/lib/use-tasks";
 
 type Draft = { id?: string; title: string; notes: string; assignee: string; dueOn: string; status?: TaskItem["status"] };
@@ -22,7 +22,6 @@ function doneLabel(iso: string) {
 export function TasksHome() {
   const tasks = useTasks();
   const { parentMode, space } = useTheme();
-  const chrome = useChrome("snug");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const openItems = tasks.items.filter((item) => item.status !== "done");
@@ -54,7 +53,19 @@ export function TasksHome() {
 
   return (
     <Screen>
-      <Masthead title="Tasks" lede={parentMode ? undefined : "Errands, rides, and follow-ups."} />
+      <PageHeader
+        title="Tasks"
+        lede={parentMode ? undefined : "Errands, rides, and follow-ups."}
+        onAdd={
+          tasks.phase === "ready" && tasks.canView && tasks.canEdit && !draft
+            ? () => {
+                setFormError(null);
+                setDraft({ title: "", notes: "", assignee: "", dueOn: "" });
+              }
+            : undefined
+        }
+        addLabel="Add a task"
+      />
       <ReadAloud text={spoken} />
       {tasks.phase === "loading" ? <AppText tone="muted">Opening tasks.</AppText> : null}
       {tasks.phase === "error" ? (
@@ -90,48 +101,68 @@ export function TasksHome() {
           <ActionButton label="Close" emphasis="quiet" onPress={() => setDraft(null)} />
         </Card>
       ) : null}
-      {tasks.phase === "ready" && tasks.canView && !draft && tasks.canEdit ? (
-        <ActionButton
-          label="Add a task"
-          onPress={() => {
-            setFormError(null);
-            setDraft({ title: "", notes: "", assignee: "", dueOn: "" });
-          }}
-        />
-      ) : null}
       {tasks.phase === "ready" && tasks.canView && !draft && openItems.length === 0 ? (
-        <EmptyState title="Nothing to do" body="Errands and follow-ups will appear here." icon="check-square" />
+        <Group>
+          <View style={{ padding: space[4] }}>
+            <EmptyState title="Nothing to do" body="Errands and follow-ups will appear here." icon="check-square" />
+          </View>
+        </Group>
       ) : null}
       {tasks.phase === "ready" && tasks.canView && !draft && openItems.length > 0 ? (
-        <View style={{ gap: space[4] }}>
-          {openItems.map((item) => {
-            const owner = item.assignee === tasks.me ? "Assigned to you" : item.assigneeName ? `Assigned to ${item.assigneeName}` : "Open";
+        <Group>
+          {openItems.map((item, index) => {
+            const owner = item.assignee === tasks.me ? "Assigned to you" : item.assigneeName ? item.assigneeName : "Open";
             const due = item.dueOn ? `Due ${dayLabel(item.dueOn)}` : "";
             const canComplete = tasks.canEdit || item.assignee === tasks.me;
             return (
-              <View key={item.id} style={[chrome, { gap: space[4] }]}>
-                <Pressable accessibilityRole={tasks.canEdit ? "button" : "text"} accessibilityLabel={item.title} disabled={!tasks.canEdit} onPress={() => setDraft({ id: item.id, title: item.title, notes: item.notes, assignee: item.assignee, dueOn: item.dueOn, status: item.status })}>
-                  <AppText variant="caption" tone="faint">{[owner, due].filter(Boolean).join(" · ")}</AppText>
+              <Row
+                key={item.id}
+                last={index === openItems.length - 1}
+                label={tasks.canEdit ? `Edit ${item.title}` : item.title}
+                onPress={
+                  tasks.canEdit
+                    ? () => setDraft({ id: item.id, title: item.title, notes: item.notes, assignee: item.assignee, dueOn: item.dueOn, status: item.status })
+                    : undefined
+                }
+              >
+                <View style={{ flex: 1, gap: 2 }}>
                   <AppText variant="heading">{item.title}</AppText>
+                  <AppText variant="caption" tone="muted">{[owner, due].filter(Boolean).join(" · ")}</AppText>
                   {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
-                </Pressable>
-                {canComplete ? <ActionButton label="Mark done" onPress={() => tasks.complete(item.id).catch(() => undefined)} /> : null}
-              </View>
+                </View>
+                <Mark
+                  done={false}
+                  label={`Mark ${item.title} done`}
+                  onPress={canComplete ? () => tasks.complete(item.id).catch(() => undefined) : undefined}
+                />
+              </Row>
             );
           })}
-        </View>
+        </Group>
       ) : null}
       {tasks.phase === "ready" && tasks.canView && !draft && doneItems.length > 0 ? (
-        <View style={{ gap: space[4] }}>
+        <View style={{ gap: space[3] }}>
           <SectionLabel>Done</SectionLabel>
-          {doneItems.map((item) => (
-            <View key={item.id} style={[chrome, { gap: space[4] }]}>
-              <AppText variant="caption" tone="faint">{doneLabel(item.completedAt)}{item.assigneeName ? ` · ${item.assigneeName}` : ""}</AppText>
-              <AppText variant="heading">{item.title}</AppText>
-              {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
-              {tasks.canEdit ? <ActionButton label="Reopen" emphasis="quiet" onPress={() => tasks.reopen(item.id).catch(() => undefined)} /> : null}
-            </View>
-          ))}
+          <Group>
+            {doneItems.map((item, index) => (
+              <Row key={item.id} last={index === doneItems.length - 1}>
+                <Mark done label={doneLabel(item.completedAt)} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <AppText variant="heading">{item.title}</AppText>
+                  <AppText variant="caption" tone="muted">
+                    {doneLabel(item.completedAt)}
+                    {item.assigneeName ? ` · ${item.assigneeName}` : ""}
+                  </AppText>
+                  {item.notes ? <AppText tone="muted">{item.notes}</AppText> : null}
+                  {tasks.canEdit ? (
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Reopen ${item.title}`} onPress={() => tasks.reopen(item.id).catch(() => undefined)}>
+                      <AppText variant="label" tone="accent">Reopen</AppText>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </Row>
+            ))}
+          </Group>
         </View>
       ) : null}
       {tasks.notice ? <AppText variant="caption" tone="faint">{tasks.notice}</AppText> : null}

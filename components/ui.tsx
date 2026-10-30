@@ -24,10 +24,10 @@ export function Screen({ children }: { children: ReactNode }) {
           width: "100%",
           maxWidth: 520,
           alignSelf: "center",
-          paddingHorizontal: space[6],
-          paddingTop: insets.top + space[8],
-          paddingBottom: space[12],
-          gap: space[6],
+          paddingHorizontal: space[5],
+          paddingTop: insets.top + space[3],
+          paddingBottom: space[10],
+          gap: space[5],
         }}
       >
         {children}
@@ -109,40 +109,168 @@ export function Card({ children, style }: { children: ReactNode; style?: ViewSty
 export function EmptyState({ title, body, icon }: { title: string; body: string; icon: EmptyIcon }) {
   const { colors, space } = useTheme();
   return (
-    <View style={{ paddingVertical: space[4], gap: space[2], alignItems: "flex-start" }}>
-      {icon === "pill" ? (
-        <MaterialCommunityIcons name="pill" size={22} color={colors.faint} />
-      ) : (
-        <Feather name={icon} size={22} color={colors.faint} />
-      )}
-      <AppText variant="heading">{title}</AppText>
-      <AppText tone="muted">{body}</AppText>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: space[4], paddingVertical: space[2] }}>
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: colors.accentSoft,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {icon === "pill" ? (
+          <MaterialCommunityIcons name="pill" size={20} color={colors.accent} />
+        ) : (
+          <Feather name={icon} size={20} color={colors.accent} />
+        )}
+      </View>
+      <View style={{ flex: 1, gap: space[1] }}>
+        <AppText variant="heading">{title}</AppText>
+        <AppText tone="muted">{body}</AppText>
+      </View>
     </View>
   );
 }
 
-export function Wordmark() {
-  const { colors, space } = useTheme();
+export function PageHeader({
+  eyebrow,
+  title,
+  lede,
+  onAdd,
+  addLabel,
+}: {
+  eyebrow?: string;
+  title: string;
+  lede?: string;
+  onAdd?: () => void;
+  addLabel?: string;
+}) {
+  const { space } = useTheme();
   return (
-    <View style={{ gap: space[2], alignItems: "flex-start" }}>
-      <AppText variant="caption" tone="accent" style={{ letterSpacing: 1.8, fontWeight: "600", textTransform: "uppercase" }}>
-        PrimaLux Care
-      </AppText>
-      <View style={{ width: 32, height: 1, backgroundColor: colors.metal }} />
+    <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: space[4] }}>
+      <View style={{ flex: 1, gap: space[1] }}>
+        {eyebrow ? <AppText variant="caption" tone="muted">{eyebrow}</AppText> : null}
+        <AppText variant="title">{title}</AppText>
+        {lede ? <AppText tone="muted">{lede}</AppText> : null}
+      </View>
+      {onAdd ? <IconButton label={addLabel ?? `Add to ${title}`} onPress={onAdd} /> : null}
     </View>
+  );
+}
+
+export function IconButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: colors.accent,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: pressed ? 0.88 : 1,
+        },
+        webPointer,
+      ]}
+    >
+      <Feather name="plus" size={22} color={colors.accentInk} />
+    </Pressable>
+  );
+}
+
+export function Group({ children }: { children: ReactNode }) {
+  const chrome = useChrome("roomy");
+  return <View style={[chrome, { padding: 0, gap: 0, overflow: "hidden" }]}>{children}</View>;
+}
+
+export function Row({
+  children,
+  last,
+  onPress,
+  label,
+}: {
+  children: ReactNode;
+  last?: boolean;
+  onPress?: () => void;
+  label?: string;
+}) {
+  const { colors, space } = useTheme();
+  const body = (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: space[3],
+        paddingHorizontal: space[4],
+        paddingVertical: space[4],
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: colors.line,
+      }}
+    >
+      {children}
+    </View>
+  );
+  if (!onPress) return body;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [{ opacity: pressed ? 0.86 : 1 }, webPointer]}
+    >
+      {body}
+    </Pressable>
+  );
+}
+
+export function Mark({ done, label, onPress }: { done: boolean; label: string; onPress?: () => void }) {
+  const { colors } = useTheme();
+  const disc = (
+    <View
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: colors.accent,
+        backgroundColor: done ? colors.accent : "transparent",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {done ? <Feather name="check" size={16} color={colors.accentInk} /> : null}
+    </View>
+  );
+  if (!onPress) return <View style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>{disc}</View>;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: done }}
+      onPress={onPress}
+      hitSlop={8}
+      style={({ pressed }) => [
+        { width: 44, height: 44, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.8 : 1 },
+        webPointer,
+      ]}
+    >
+      {disc}
+    </Pressable>
   );
 }
 
 export function Masthead({ date, title, lede }: { date?: string; title: string; lede?: string }) {
   const { space } = useTheme();
   return (
-    <View style={{ gap: space[2] }}>
-      <Wordmark />
-      {date ? (
-        <AppText variant="caption" tone="faint" style={{ marginTop: space[2] }}>
-          {date}
-        </AppText>
-      ) : null}
+    <View style={{ gap: space[1] }}>
+      {date ? <AppText variant="caption" tone="muted">{date}</AppText> : null}
       <AppText variant="title">{title}</AppText>
       {lede ? <AppText tone="muted">{lede}</AppText> : null}
     </View>

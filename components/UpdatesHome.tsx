@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { useTheme } from "@/components/theme";
 import { ReadAloud } from "@/components/ReadAloud";
-import { ActionButton, AppText, Card, EmptyState, Field, Masthead, Screen, useChrome } from "@/components/ui";
+import { ActionButton, AppText, Card, EmptyState, Field, Group, PageHeader, Row, Screen } from "@/components/ui";
 import { usePosts, type PostItem } from "@/lib/use-posts";
 
 function whenLabel(iso: string) {
@@ -14,7 +14,6 @@ function whenLabel(iso: string) {
 export function UpdatesHome() {
   const posts = usePosts();
   const { parentMode, space } = useTheme();
-  const chrome = useChrome("snug");
   const [draft, setDraft] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -39,7 +38,7 @@ export function UpdatesHome() {
 
   return (
     <Screen>
-      <Masthead title="Updates" lede={parentMode ? undefined : "Notes for this circle."} />
+      <PageHeader title="Updates" lede={parentMode ? undefined : "A short note for the people in this circle."} />
       <ReadAloud text={spoken} />
       {posts.phase === "loading" ? <AppText tone="muted">Opening updates.</AppText> : null}
       {posts.phase === "error" ? (
@@ -58,20 +57,22 @@ export function UpdatesHome() {
         </Card>
       ) : null}
       {posts.phase === "ready" && posts.canRead && posts.items.length === 0 ? (
-        <EmptyState title="No notes yet" body="Family updates will appear here." icon="message-circle" />
+        <EmptyState title="No notes yet" body="The first update will show up here." icon="message-circle" />
       ) : null}
       {posts.phase === "ready" && posts.canRead && posts.items.length > 0 ? (
-        <View style={{ gap: space[4] }}>
-          {posts.items.map((item: PostItem) => (
-            <View key={item.id} style={chrome}>
-              <AppText variant="caption" tone="faint">
-                {item.authorId === posts.me ? "You" : item.authorName}
-                {item.sentAt ? ` · ${whenLabel(item.sentAt)}` : ""}
-              </AppText>
-              <AppText>{item.body}</AppText>
-            </View>
+        <Group>
+          {posts.items.map((item: PostItem, index) => (
+            <Row key={item.id} last={index === posts.items.length - 1}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <AppText variant="caption" tone="muted">
+                  {item.authorId === posts.me ? "You" : item.authorName}
+                  {item.sentAt ? ` · ${whenLabel(item.sentAt)}` : ""}
+                </AppText>
+                <AppText>{item.body}</AppText>
+              </View>
+            </Row>
           ))}
-        </View>
+        </Group>
       ) : null}
       {posts.notice ? <AppText variant="caption" tone="faint">{posts.notice}</AppText> : null}
       <AppText variant="caption" tone="faint">Private to this circle.</AppText>
