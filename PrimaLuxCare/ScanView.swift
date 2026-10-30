@@ -10,6 +10,7 @@ struct ScanView: View {
     @State private var draft = LabelReading()
     @State private var reviewing = false
     @State private var message = ""
+    @AppStorage("scanCamera") private var scanCamera = "back"
 
     var body: some View {
         let palette = Palette.current(scheme)
@@ -74,7 +75,7 @@ struct ScanView: View {
         }
         .navigationTitle("Scan a label")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { capture.start() }
+        .onAppear { capture.start(front: scanCamera == "front") }
         .onDisappear { capture.stop() }
         .sheet(isPresented: $reviewing) {
             review(palette)
