@@ -29,26 +29,36 @@ enum LabelParser {
     static func parse(_ lines: [String]) -> LabelReading {
         let clean = lines.map { collapse($0) }.filter { $0.count > 1 && !isNoise($0) }
         var reading = LabelReading()
-        let instructionIndexes = clean.indices.filter { isInstruction(clean[$0]) }
-        if let first = instructionIndexes.first {
-            var last = first
-            while instructionIndexes.contains(last + 1) { last += 1 }
-            reading.instructions = pretty(clean[first...last].joined(separator: " "))
-        }
-        if let drugLine = drugLine(in: clean, before: instructionIndexes.first) {
-            let parts = splitDrug(drugLine)
-            reading.drugName = parts.name
-            reading.dosage = parts.dosage
-        }
+        let sig = clean.filter { isInstruction($0) }
+        reading.instructions = pretty(joinSig(sig))
+        let chosen = bestDrug(in: clean)
+        reading.drugName = chosen.name
+        reading.dosage = chosen.dosage
         let blob = clean.joined(separator: "\n")
         reading.rxNumber = match(#"(?i)\b(?:rx|prescription)\s*(?:number|no\.?|#)?\s*[:#]?\s*([A-Z0-9][A-Z0-9-]{4,})"#, in: blob)
         reading.quantity = match(#"(?i)\b(?:qty|quantity)\s*[:#]?\s*(\d+)"#, in: blob)
-        reading.refills = match(#"(?i)\brefills?\s*[:#]?\s*(\d+|none)"#, in: blob)
+        reading.refills = firstFilled(
+            match(#"(?i)\brefills?\s*[:#]?\s*(\d+|none)"#, in: blob),
+            match(#"(?i)\b(\d+)\s*refills?\b"#, in: blob)
+        )
         if let drugIndex = clean.firstIndex(where: { collapse($0).localizedCaseInsensitiveContains(reading.drugName) && !reading.drugName.isEmpty }) {
             reading.patient = clean.prefix(drugIndex).first(where: isPersonName).map(pretty) ?? ""
         }
-        reading.pharmacy = pharmacy(in: clean, drug: reading.drugName)
+        reading.pharmacy = dedupe(pharmacy(in: clean, drug: reading.drugName))
         return reading
+    }
+
+    static func keep(_ old: LabelReading, _ new: LabelReading) -> LabelReading {
+        var kept = old
+        kept.drugName = keepName(old.drugName, new.drugName)
+        if kept.dosage.isEmpty, nameQuality(kept.drugName) > 0 { kept.dosage = new.dosage }
+        kept.instructions = keepSig(old.instructions, new.instructions)
+        if kept.rxNumber.isEmpty { kept.rxNumber = new.rxNumber }
+        if kept.quantity.isEmpty { kept.quantity = new.quantity }
+        if kept.refills.isEmpty { kept.refills = new.refills }
+        if kept.patient.isEmpty { kept.patient = new.patient }
+        kept.pharmacy = keepPharmacy(old.pharmacy, new.pharmacy)
+        return kept
     }
 
     static func hint(for reading: LabelReading) -> String {
@@ -84,12 +94,96 @@ enum LabelParser {
         return normalized * 60 + min(minute, 59)
     }
 
-    private static func drugLine(in lines: [String], before instruction: Int?) -> String? {
-        let pool = lines.enumerated().filter { !isInstruction($0.element) && strength(in: $0.element) != nil }
-        if let instruction, let nearest = pool.filter({ $0.offset < instruction }).max(by: { $0.offset < $1.offset }) {
-            return nearest.element
+    private static func bestDrug(in lines: [String]) -> (name: String, dosage: String) {
+        var bestName = ""
+        var bestScore = 0
+        var dosage = ""
+        for (index, line) in lines.enumerated() {
+            guard let found = strength(in: line) else { continue }
+            if dosage.isEmpty { dosage = found.pretty }
+            let onLine = nameQuality(splitDrug(line).name)
+            if onLine > bestScore {
+                bestScore = onLine
+                bestName = splitDrug(line).name
+            }
+            if onLine >= 5 || index == 0 { continue }
+            let previous = lines[index - 1]
+            guard !isInstruction(previous), !isPersonName(previous) else { continue }
+            let nearby = nameQuality(pretty(previous))
+            if nearby > bestScore {
+                bestScore = nearby
+                bestName = pretty(previous)
+            }
         }
-        return pool.first?.element
+        return (bestName, dosage)
+    }
+
+    private static func nameQuality(_ name: String) -> Int {
+        let trimmed = collapse(name)
+        let letters = trimmed.filter(\.isLetter)
+        guard letters.count >= 4 else { return 0 }
+        let junk = trimmed.filter { !$0.isLetter && !$0.isWhitespace && $0 != "-" && $0 != "'" }
+        if junk.count > 0 { return 0 }
+        let lower = trimmed.lowercased()
+        let blocked = ["tablet", "tablets", "capsule", "capsules", "mouth", "daily", "refill", "refills", "walgreens", "pharmacy", "discard", "before"]
+        if blocked.contains(where: { lower == $0 || lower.contains($0) }) { return 0 }
+        return letters.count
+    }
+
+    private static func keepName(_ old: String, _ new: String) -> String {
+        let oldScore = nameQuality(old)
+        let newScore = nameQuality(new)
+        if newScore == 0 { return old }
+        if oldScore == 0 { return new }
+        let oldKey = old.lowercased()
+        let newKey = new.lowercased()
+        if newKey.contains(oldKey) && newScore >= oldScore { return new }
+        return old
+    }
+
+    private static func keepSig(_ old: String, _ new: String) -> String {
+        if old.isEmpty { return new }
+        if new.isEmpty { return old }
+        if new.localizedCaseInsensitiveContains(old) && new.count > old.count { return new }
+        return old
+    }
+
+    private static func keepPharmacy(_ old: String, _ new: String) -> String {
+        let next = dedupe(new)
+        if old.isEmpty { return next }
+        if next.localizedCaseInsensitiveContains(old), next.count > old.count + 4 { return next }
+        return old
+    }
+
+    private static func dedupe(_ text: String) -> String {
+        var seen = Set<String>()
+        var kept: [String] = []
+        for word in text.split(separator: " ") {
+            let token = String(word)
+            let key = token.lowercased()
+            if key == "•" || key == ".." || key == "." || key == "·" { continue }
+            if seen.contains(key) { continue }
+            seen.insert(key)
+            kept.append(token)
+        }
+        return kept.joined(separator: " ")
+    }
+
+    private static func joinSig(_ lines: [String]) -> String {
+        var kept: [String] = []
+        for line in lines {
+            if kept.contains(where: { $0.localizedCaseInsensitiveContains(line) }) { continue }
+            if let index = kept.firstIndex(where: { line.localizedCaseInsensitiveContains($0) }) {
+                kept[index] = line
+                continue
+            }
+            kept.append(line)
+        }
+        return kept.joined(separator: " ")
+    }
+
+    private static func firstFilled(_ values: String...) -> String {
+        values.first { !$0.isEmpty } ?? ""
     }
 
     private static func splitDrug(_ line: String) -> (name: String, dosage: String) {
@@ -170,15 +264,19 @@ final class LabelCapture: NSObject, ObservableObject {
     @Published var hint = LabelParser.hint(for: LabelReading())
     @Published var cameraOn = false
     @Published var usingFront = false
+    @Published var previewRotation: CGFloat = 90
     let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "guardian.label.scan")
+    private let videoOutput = AVCaptureVideoDataOutput()
     private var started = false
     private var lastPass = Date.distantPast
     private var lines: [String: SeenLine] = [:]
+    private var locked = LabelReading()
     private let gate = NSLock()
     private var pausedFlag = false
     private var position: AVCaptureDevice.Position = .back
-    private var visionOrientation: CGImagePropertyOrientation = .right
+    private var quarterTurn = 0
+    private var levelSteps = 0
 
     var paused: Bool {
         get {
@@ -207,9 +305,17 @@ final class LabelCapture: NSObject, ObservableObject {
             let next: AVCaptureDevice.Position = self.position == .back ? .front : .back
             guard AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: next) != nil else { return }
             self.position = next
-            self.visionOrientation = next == .front ? .left : .right
+            self.quarterTurn = 0
+            self.levelSteps = 0
+            self.lines.removeAll()
+            self.locked = LabelReading()
             self.installCamera(next)
-            DispatchQueue.main.async { self.usingFront = next == .front }
+            self.applyRotation()
+            DispatchQueue.main.async {
+                self.usingFront = next == .front
+                self.reading = LabelReading()
+                self.hint = LabelParser.hint(for: LabelReading())
+            }
         }
     }
 
@@ -220,21 +326,50 @@ final class LabelCapture: NSObject, ObservableObject {
         }
     }
 
+    func restart() {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.lines.removeAll()
+            self.locked = LabelReading()
+            self.quarterTurn = 0
+            self.levelSteps = 0
+            self.applyRotation()
+            DispatchQueue.main.async {
+                self.reading = LabelReading()
+                self.hint = LabelParser.hint(for: LabelReading())
+            }
+        }
+    }
+
+    private func currentAngle() -> CGFloat {
+        let base: CGFloat = position == .front ? 270 : 90
+        return (base + CGFloat(quarterTurn) * 90).truncatingRemainder(dividingBy: 360)
+    }
+
+    private func applyRotation() {
+        let angle = currentAngle()
+        if let connection = videoOutput.connection, connection.isVideoRotationAngleSupported(angle) {
+            connection.videoRotationAngle = angle
+        }
+        DispatchQueue.main.async { self.previewRotation = angle }
+    }
+
     private func configure() {
         session.beginConfiguration()
         session.sessionPreset = .hd1920x1080
         installCamera(.back)
-        let output = AVCaptureVideoDataOutput()
-        output.alwaysDiscardsLateVideoFrames = true
-        output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
-        output.setSampleBufferDelegate(self, queue: queue)
-        guard session.canAddOutput(output) else {
+        videoOutput.alwaysDiscardsLateVideoFrames = true
+        videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
+        videoOutput.setSampleBufferDelegate(self, queue: queue)
+        guard session.canAddOutput(videoOutput) else {
             session.commitConfiguration()
             return
         }
-        session.addOutput(output)
+        session.addOutput(videoOutput)
         session.commitConfiguration()
+        applyRotation()
         session.startRunning()
+        applyRotation()
         DispatchQueue.main.async { self.cameraOn = true }
     }
 
@@ -299,7 +434,9 @@ final class LabelCapture: NSObject, ObservableObject {
     private func publish() {
         let stable = lines.values.filter { $0.seen >= 2 || $0.confidence >= 0.82 }
         let ordered = stable.sorted { $0.midY > $1.midY }.map(\.text)
-        let next = LabelParser.parse(ordered)
+        let parsed = LabelParser.parse(ordered)
+        locked = LabelParser.keep(locked, parsed)
+        let next = locked
         let nextHint = LabelParser.hint(for: next)
         DispatchQueue.main.async {
             guard !self.paused else { return }
@@ -335,9 +472,15 @@ extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
         ]
         let codes = VNDetectBarcodesRequest()
         codes.symbologies = [.qr]
-        let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: visionOrientation)
+        let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: .up)
         try? handler.perform([textRequest, codes])
-        for observation in textRequest.results ?? [] {
+        let observations = textRequest.results ?? []
+        if levelIfNeeded(observations) {
+            locked = LabelReading()
+            lines.removeAll()
+            return
+        }
+        for observation in observations {
             guard let candidate = observation.topCandidates(1).first else { continue }
             absorb(text: candidate.string, confidence: candidate.confidence, midY: observation.boundingBox.midY)
         }
@@ -349,23 +492,36 @@ extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
         }
         publish()
     }
+
+    private func levelIfNeeded(_ observations: [VNRecognizedTextObservation]) -> Bool {
+        guard levelSteps < 3, observations.count >= 4 else { return false }
+        let vertical = observations.filter { $0.boundingBox.height > $0.boundingBox.width * 1.15 }.count
+        guard vertical * 2 > observations.count else { return false }
+        levelSteps += 1
+        quarterTurn = (quarterTurn + 1) % 4
+        applyRotation()
+        return true
+    }
 }
 
 struct LabelPreview: UIViewRepresentable {
     let session: AVCaptureSession
     var front: Bool
+    var rotation: CGFloat
 
     func makeUIView(context: Context) -> PreviewHost {
         let view = PreviewHost()
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
         view.front = front
+        view.rotation = rotation
         return view
     }
 
     func updateUIView(_ uiView: PreviewHost, context: Context) {
         uiView.previewLayer.session = session
         uiView.front = front
+        uiView.rotation = rotation
     }
 }
 
@@ -373,6 +529,7 @@ final class PreviewHost: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
     var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
     var front = false { didSet { applyConnection() } }
+    var rotation: CGFloat = 90 { didSet { applyConnection() } }
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -381,8 +538,8 @@ final class PreviewHost: UIView {
 
     private func applyConnection() {
         guard let connection = previewLayer.connection else { return }
-        if connection.isVideoRotationAngleSupported(90) {
-            connection.videoRotationAngle = 90
+        if connection.isVideoRotationAngleSupported(rotation) {
+            connection.videoRotationAngle = rotation
         }
         guard connection.isVideoMirroringSupported else { return }
         connection.automaticallyAdjustsVideoMirroring = false
