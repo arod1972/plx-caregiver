@@ -22,14 +22,14 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
   const iconSize = textSize === "extra" ? 22 : 20;
 
   return (
-    <View style={{ backgroundColor: colors.bg, alignItems: "center" }}>
+    <View style={{ backgroundColor: colors.surface, alignItems: "center" }}>
       <View
         accessibilityRole="tablist"
         style={{
           width: "100%",
           maxWidth: 480,
           flexDirection: "row",
-          backgroundColor: colors.bg,
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
           borderTopColor: colors.line,
           paddingBottom: bottom,
@@ -73,7 +73,18 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
                 webPointer,
               ]}
             >
-              <TabIcon name={route.name} color={iconColor} size={iconSize} />
+              <View
+                style={{
+                  minWidth: 52,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: focused ? colors.accentSoft : "transparent",
+                }}
+              >
+                <TabIcon name={route.name} color={iconColor} size={iconSize} />
+              </View>
               <Text
                 style={{
                   color: labelColor,
@@ -86,14 +97,6 @@ export function CareTabBar({ state, descriptors, emitter, navigateToTab, insets 
               >
                 {label}
               </Text>
-              <View
-                style={{
-                  width: 16,
-                  height: 2,
-                  borderRadius: 1,
-                  backgroundColor: focused ? colors.accent : "transparent",
-                }}
-              />
             </Pressable>
           );
         })}
