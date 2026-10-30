@@ -1,5 +1,7 @@
 import AVFoundation
 import Foundation
+import SwiftUI
+import UIKit
 import Vision
 
 struct LabelReading: Equatable {
