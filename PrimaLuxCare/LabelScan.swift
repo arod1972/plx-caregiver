@@ -348,7 +348,7 @@ final class LabelCapture: NSObject, ObservableObject {
 
     private func applyRotation() {
         let angle = currentAngle()
-        if let connection = videoOutput.connection, connection.isVideoRotationAngleSupported(angle) {
+        if let connection = videoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) {
             connection.videoRotationAngle = angle
         }
         DispatchQueue.main.async { self.previewRotation = angle }
