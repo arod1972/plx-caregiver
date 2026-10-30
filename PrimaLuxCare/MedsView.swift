@@ -11,6 +11,8 @@ struct MedsView: View {
 
     var body: some View {
         let palette = Palette.current(scheme)
+        let canEdit = CareAccess.allows("meds", edit: true, context: context)
+        let canView = CareAccess.allows("meds", edit: false, context: context)
         let remaining = doses.filter { !CareClock.takenToday($0) }.count
         NavigationStack {
             CareScreen {
@@ -23,7 +25,9 @@ struct MedsView: View {
                         .font(.subheadline)
                         .foregroundStyle(palette.muted)
                 }
-                if doses.isEmpty {
+                if !canView {
+                    EmptyCare(title: "Not shared", bodyText: "Medications are not on this phone for your role.")
+                } else if doses.isEmpty {
                     EmptyCare(title: "No medications", bodyText: "Add a name, a dose, and a time.")
                 } else {
                     MetalCard {
@@ -34,7 +38,14 @@ struct MedsView: View {
                         }
                     }
                 }
-                if parentMode {
+                if canEdit {
+                    NavigationLink { ScanView() } label: {
+                        Text("Scan a label")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(palette.sage)
+                    }
+                }
+                if parentMode && canView {
                     MetalButton(title: "Read aloud", filled: false) {
                         let text = doses.map { "\($0.name), \($0.dosage), at \(CareClock.label(minutes: $0.timeMinutes))." }.joined(separator: " ")
                         Speaker.say(text.isEmpty ? "No medications." : text)
@@ -44,6 +55,7 @@ struct MedsView: View {
             .navigationTitle("Medications")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                if canEdit {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         adding = true
@@ -57,6 +69,7 @@ struct MedsView: View {
                             .overlay { Circle().strokeBorder(palette.metalLight.opacity(0.8), lineWidth: 1) }
                     }
                     .accessibilityLabel("Add a medication")
+                }
                 }
             }
             .sheet(isPresented: $adding) { DoseEditor(dose: nil) }
@@ -86,7 +99,10 @@ struct MedsView: View {
             .buttonStyle(.plain)
             .foregroundStyle(palette.ink)
             DoseMark(done: CareClock.takenToday(dose)) {
+                guard canEdit else { return }
                 CareClock.toggleTaken(dose)
+                AuditLog.record(context, action: "dose.taken", resource: dose.uid.uuidString)
+                try? context.save()
             }
             .accessibilityLabel(CareClock.takenToday(dose) ? "\(dose.name) taken" : "Mark \(dose.name) taken")
         }
@@ -165,14 +181,21 @@ struct DoseEditor: View {
         let minutes = (clock.hour ?? 8) * 60 + (clock.minute ?? 0)
         let cleanName = name.trimmingCharacters(in: .whitespaces)
         let cleanDose = dosage.trimmingCharacters(in: .whitespaces)
+        let saved: Dose
         if let dose {
             dose.name = cleanName
             dose.dosage = cleanDose
             dose.timeMinutes = minutes
             dose.refillOn = hasRefill ? refill : nil
+            saved = dose
         } else {
-            context.insert(Dose(name: cleanName, dosage: cleanDose, timeMinutes: minutes, refillOn: hasRefill ? refill : nil))
+            let created = Dose(name: cleanName, dosage: cleanDose, timeMinutes: minutes, refillOn: hasRefill ? refill : nil)
+            context.insert(created)
+            saved = created
         }
+        AuditLog.record(context, action: "medication.save", resource: saved.uid.uuidString)
+        try? context.save()
+        CareReminders.schedule(dose: saved)
         dismiss()
     }
 }

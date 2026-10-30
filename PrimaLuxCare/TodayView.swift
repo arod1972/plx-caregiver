@@ -12,10 +12,18 @@ struct TodayView: View {
 
     var body: some View {
         let palette = Palette.current(scheme)
+        let canEdit = CareAccess.allows("calendar", edit: true, context: context)
+        let canView = CareAccess.allows("calendar", edit: false, context: context)
         let dayEvents = events.filter { CareClock.event($0, occursOn: selected) }
         NavigationStack {
             CareScreen {
+                if let warning = CareDatabase.storeWarning {
+                    Text(warning).foregroundStyle(palette.muted)
+                }
                 hero(palette)
+                if !canView {
+                    EmptyCare(title: "Not shared", bodyText: "The calendar is not on this phone for your role.")
+                } else {
                 weekStrip(palette)
                 if dayEvents.isEmpty && doses.isEmpty {
                     EmptyCare(title: "Nothing scheduled", bodyText: "This day is clear.")
@@ -23,7 +31,7 @@ struct TodayView: View {
                     MetalCard {
                         VStack(spacing: 0) {
                             ForEach(doses) { dose in
-                                doseRow(dose, palette: palette, .last: dose.uid == doses.last?.uid && dayEvents.isEmpty)
+                                doseRow(dose, palette: palette, last: dose.uid == doses.last?.uid && dayEvents.isEmpty)
                             }
                             ForEach(dayEvents) { event in
                                 eventRow(event, palette: palette, last: event.uid == dayEvents.last?.uid)
@@ -36,10 +44,12 @@ struct TodayView: View {
                         Speaker.say(spoken(dayEvents))
                     }
                 }
+                }
             }
             .navigationTitle("Calendar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if canEdit {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         adding = true
@@ -55,6 +65,7 @@ struct TodayView: View {
                             }
                     }
                     .accessibilityLabel("Add an event")
+                }
                 }
             }
             .sheet(isPresented: $adding) {
@@ -201,8 +212,10 @@ struct EventEditor: View {
     @State private var kind = "Appointment"
     @State private var time = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: .now) ?? .now
     @State private var notes = ""
+    @State private var repeatRule = "none"
 
     private let kinds = ["Appointment", "Visit", "Important date"]
+    private let repeats = [("none", "Once"), ("weekly", "Weekly"), ("monthly", "Monthly")]
 
     var body: some View {
         let palette = Palette.current(scheme)
@@ -222,6 +235,9 @@ struct EventEditor: View {
                         .font(.subheadline.weight(.semibold))
                 }
                 CareField(label: "Notes", text: $notes, prompt: "Optional")
+                Picker("Repeats", selection: $repeatRule) {
+                    ForEach(repeats, id: \.0) { Text($0.1).tag($0.0) }
+                }
                 MetalButton(title: "Save") { save() }
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 MetalButton(title: "Close", filled: false) { dismiss() }
@@ -240,7 +256,11 @@ struct EventEditor: View {
         parts.hour = kind == "Important date" ? 9 : clock.hour
         parts.minute = kind == "Important date" ? 0 : clock.minute
         let when = calendar.date(from: parts) ?? day
-        context.insert(CareEvent(title: title.trimmingCharacters(in: .whitespaces), kind: kind, startsAt: when, notes: notes.trimmingCharacters(in: .whitespaces)))
+        let event = CareEvent(title: title.trimmingCharacters(in: .whitespaces), kind: kind, startsAt: when, repeatRule: repeatRule, notes: notes.trimmingCharacters(in: .whitespaces))
+        context.insert(event)
+        AuditLog.record(context, action: "calendar.save", resource: event.uid.uuidString)
+        try? context.save()
+        CareReminders.schedule(event: event)
         dismiss()
     }
 }
