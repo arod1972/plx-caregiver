@@ -154,7 +154,7 @@ Every screen must feel like a polished product a family would trust with sensiti
 
 | ID | Phase | Task | Acceptance Criteria | Status | PR Link | Notes |
 |----|-------|------|---------------------|--------|---------|-------|
-| 10.1 | Setup | Create Xcode SwiftUI project structure, bottom tabs (Calendar, Tasks, Meds, Updates, Profile), design system tokens | App launches in simulator, tabs present, light/dark, Dynamic Type support. | Not Started |  | Pure SwiftUI. No Expo. |
+| 10.1 | Setup | Create Xcode SwiftUI project structure, bottom tabs (Calendar, Tasks, Meds, Updates, Profile), design system tokens | App launches in simulator, tabs present, light/dark, Dynamic Type support. | Done | https://github.com/arod1972/plx-caregiver/pull/21 | Open PrimaLuxCare.xcodeproj and press Run. Sage, warm paper, and a gold edge. Light, dark, and Dynamic Type are on Profile. No Expo. |
 | 10.2 | Data | On-device store (SwiftData or SQLite) + device identity/key generation | Local DB initializes; basic CRUD works offline. | Not Started |  |  |
 | 10.3 | Pairing | Care Circle creation, QR/invite pairing, role assignment | Primary can create circle, generate invite, pair devices, assign roles. | Not Started |  |  |
 | 10.4 | Consent | Parent permission controls | Parent can set view/edit per role or member; changes propagate. | Not Started |  |  |
