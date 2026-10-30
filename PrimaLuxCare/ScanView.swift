@@ -88,6 +88,7 @@ struct ScanView: View {
             line("Dose", reading.dosage, palette: palette)
             line("Directions", reading.instructions, palette: palette)
             line("Rx", reading.rxNumber, palette: palette)
+            line("Barcode", reading.barcode, palette: palette)
             line("Qty", reading.quantity, palette: palette)
             line("Refills", reading.refills, palette: palette)
             line("Pharmacy", reading.pharmacy, palette: palette)

@@ -13,6 +13,7 @@ struct LabelReading: Equatable {
     var refills = ""
     var pharmacy = ""
     var patient = ""
+    var barcode = ""
 
     var canAdd: Bool { drugName.count >= 3 }
 
@@ -54,6 +55,8 @@ enum LabelParser {
         if kept.dosage.isEmpty, nameQuality(kept.drugName) > 0 { kept.dosage = new.dosage }
         kept.instructions = keepSig(old.instructions, new.instructions)
         if kept.rxNumber.isEmpty { kept.rxNumber = new.rxNumber }
+        if kept.barcode.isEmpty { kept.barcode = new.barcode }
+        if kept.rxNumber.isEmpty { kept.rxNumber = rx(fromBarcode: new.barcode) }
         if kept.quantity.isEmpty { kept.quantity = new.quantity }
         if kept.refills.isEmpty { kept.refills = new.refills }
         if kept.patient.isEmpty { kept.patient = new.patient }
@@ -63,7 +66,7 @@ enum LabelParser {
 
     static func hint(for reading: LabelReading) -> String {
         if reading.drugName.isEmpty {
-            return "Hold the bottle close and turn it slowly. A shaky hand is fine. The name is usually the large line."
+            return "Hold the bottle still. The name is kept only after it stays the same."
         }
         if reading.instructions.isEmpty {
             return "Keep turning until the directions come around, such as TAKE 1 TABLET BY MOUTH DAILY."
@@ -92,6 +95,19 @@ enum LabelParser {
         if hour == 12 && marker.hasPrefix("a") { normalized = 0 }
         if hour == 12 && marker.hasPrefix("p") { normalized = 12 }
         return normalized * 60 + min(minute, 59)
+    }
+
+    static func isSettledName(_ name: String) -> Bool {
+        nameQuality(name) >= 5
+    }
+
+    static func rx(fromBarcode payload: String) -> String {
+        let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.lowercased().hasPrefix("http") { return "" }
+        let compact = trimmed.filter { $0.isNumber || $0 == "-" }
+        let digits = compact.filter(\.isNumber)
+        guard (6...16).contains(digits.count) else { return "" }
+        return compact
     }
 
     private static func bestDrug(in lines: [String]) -> (name: String, dosage: String) {
@@ -264,7 +280,7 @@ final class LabelCapture: NSObject, ObservableObject {
     @Published var hint = LabelParser.hint(for: LabelReading())
     @Published var cameraOn = false
     @Published var usingFront = false
-    @Published var previewRotation: CGFloat = 90
+    @Published var previewRotation: CGFloat = 180
     let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "guardian.label.scan")
     private let videoOutput = AVCaptureVideoDataOutput()
@@ -275,8 +291,10 @@ final class LabelCapture: NSObject, ObservableObject {
     private let gate = NSLock()
     private var pausedFlag = false
     private var position: AVCaptureDevice.Position = .back
-    private var quarterTurn = 0
-    private var levelSteps = 0
+    private var settleUntil = Date()
+    private var steadyName = ""
+    private var steadyHits = 0
+    private var seenBarcode = ""
 
     var paused: Bool {
         get {
@@ -305,10 +323,7 @@ final class LabelCapture: NSObject, ObservableObject {
             let next: AVCaptureDevice.Position = self.position == .back ? .front : .back
             guard AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: next) != nil else { return }
             self.position = next
-            self.quarterTurn = 0
-            self.levelSteps = 0
-            self.lines.removeAll()
-            self.locked = LabelReading()
+            self.beginHold()
             self.installCamera(next)
             self.applyRotation()
             DispatchQueue.main.async {
@@ -330,9 +345,7 @@ final class LabelCapture: NSObject, ObservableObject {
         queue.async { [weak self] in
             guard let self else { return }
             self.lines.removeAll()
-            self.locked = LabelReading()
-            self.quarterTurn = 0
-            self.levelSteps = 0
+            self.beginHold()
             self.applyRotation()
             DispatchQueue.main.async {
                 self.reading = LabelReading()
@@ -341,9 +354,17 @@ final class LabelCapture: NSObject, ObservableObject {
         }
     }
 
+    private func beginHold() {
+        settleUntil = Date().addingTimeInterval(1.2)
+        steadyName = ""
+        steadyHits = 0
+        seenBarcode = ""
+        lines.removeAll()
+        locked = LabelReading()
+    }
+
     private func currentAngle() -> CGFloat {
-        let base: CGFloat = position == .front ? 270 : 90
-        return (base + CGFloat(quarterTurn) * 90).truncatingRemainder(dividingBy: 360)
+        position == .front ? 0 : 180
     }
 
     private func applyRotation() {
@@ -370,6 +391,7 @@ final class LabelCapture: NSObject, ObservableObject {
         applyRotation()
         session.startRunning()
         applyRotation()
+        beginHold()
         DispatchQueue.main.async { self.cameraOn = true }
     }
 
@@ -434,15 +456,32 @@ final class LabelCapture: NSObject, ObservableObject {
     private func publish() {
         let stable = lines.values.filter { $0.seen >= 2 || $0.confidence >= 0.82 }
         let ordered = stable.sorted { $0.midY > $1.midY }.map(\.text)
-        let parsed = LabelParser.parse(ordered)
-        locked = LabelParser.keep(locked, parsed)
+        var parsed = LabelParser.parse(ordered)
+        parsed.barcode = seenBarcode
+        if parsed.rxNumber.isEmpty { parsed.rxNumber = LabelParser.rx(fromBarcode: seenBarcode) }
+        locked = steady(parsed)
         let next = locked
-        let nextHint = LabelParser.hint(for: next)
+        let nextHint = steadyHits > 0 && steadyHits < 3
+            ? "Seeing \(steadyName). Hold still."
+            : LabelParser.hint(for: next)
         DispatchQueue.main.async {
             guard !self.paused else { return }
             self.reading = next
             self.hint = nextHint
         }
+    }
+
+    private func steady(_ parsed: LabelReading) -> LabelReading {
+        let name = parsed.drugName
+        guard LabelParser.isSettledName(name) else { return locked }
+        if name.lowercased() == steadyName.lowercased() {
+            steadyHits += 1
+        } else {
+            steadyName = name
+            steadyHits = 1
+        }
+        guard steadyHits >= 3 else { return locked }
+        return LabelParser.keep(locked, parsed)
     }
 }
 
@@ -460,6 +499,14 @@ extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
         guard now.timeIntervalSince(lastPass) > 0.35 else { return }
         lastPass = now
         guard !paused, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        if Date() < settleUntil {
+            DispatchQueue.main.async {
+                guard !self.paused else { return }
+                self.reading = LabelReading()
+                self.hint = "Hold the bottle still. The name is kept once it stops changing."
+            }
+            return
+        }
         let textRequest = VNRecognizeTextRequest()
         textRequest.recognitionLevel = .accurate
         textRequest.usesLanguageCorrection = true
@@ -471,36 +518,23 @@ extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
             "tablets", "capsules", "refills", "pharmacy", "Walgreens", "CVS"
         ]
         let codes = VNDetectBarcodesRequest()
-        codes.symbologies = [.qr]
+        codes.symbologies = [.qr, .code128, .code39, .code93, .pdf417, .dataMatrix, .ean13, .ean8]
         let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: .up)
         try? handler.perform([textRequest, codes])
         let observations = textRequest.results ?? []
-        if levelIfNeeded(observations) {
-            locked = LabelReading()
-            lines.removeAll()
-            return
-        }
         for observation in observations {
             guard let candidate = observation.topCandidates(1).first else { continue }
             absorb(text: candidate.string, confidence: candidate.confidence, midY: observation.boundingBox.midY)
         }
         for code in codes.results ?? [] {
-            guard let payload = code.payloadStringValue, payload.count > 3, !payload.hasPrefix("http") else { continue }
-            for piece in payload.components(separatedBy: .newlines) where !piece.isEmpty {
-                absorb(text: piece, confidence: 0.9, midY: code.boundingBox.midY)
-            }
+            guard let payload = code.payloadStringValue else { continue }
+            let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.count > 3 else { continue }
+            if seenBarcode.isEmpty { seenBarcode = trimmed }
+            let rx = LabelParser.rx(fromBarcode: trimmed)
+            if locked.rxNumber.isEmpty, !rx.isEmpty { locked.rxNumber = rx }
         }
         publish()
-    }
-
-    private func levelIfNeeded(_ observations: [VNRecognizedTextObservation]) -> Bool {
-        guard levelSteps < 3, observations.count >= 4 else { return false }
-        let vertical = observations.filter { $0.boundingBox.height > $0.boundingBox.width * 1.15 }.count
-        guard vertical * 2 > observations.count else { return false }
-        levelSteps += 1
-        quarterTurn = (quarterTurn + 1) % 4
-        applyRotation()
-        return true
     }
 }
 
