@@ -89,6 +89,9 @@ struct ScanView: View {
             line("Directions", reading.instructions, palette: palette)
             line("Rx", reading.rxNumber, palette: palette)
             line("Barcode", reading.barcode, palette: palette)
+            if !reading.link.isEmpty {
+                line("QR link", "Pharmacy page. Not saved.", palette: palette)
+            }
             line("Qty", reading.quantity, palette: palette)
             line("Refills", reading.refills, palette: palette)
             line("Pharmacy", reading.pharmacy, palette: palette)
@@ -114,6 +117,11 @@ struct ScanView: View {
             CareScreen {
                 if !message.isEmpty {
                     Text(message).font(.subheadline).foregroundStyle(palette.sage)
+                }
+                if !draft.link.isEmpty {
+                    Text("The QR code opens a pharmacy page. The name and directions are not in it, so it is not saved.")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.muted)
                 }
                 if !draft.patient.isEmpty {
                     Text("The label is for \(draft.patient). That name is not saved.")
