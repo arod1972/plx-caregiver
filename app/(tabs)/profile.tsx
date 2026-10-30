@@ -26,6 +26,11 @@ export default function ProfileScreen() {
         <AppText tone="muted">Steps, heart rate, and sleep. Only after you allow it, and only on this iPhone.</AppText>
         <ActionButton label="Apple Health" emphasis="quiet" onPress={() => router.push("/health")} />
       </Card>
+      <Card style={{ gap: space[4] }}>
+        <AppText variant="heading">Hands-off</AppText>
+        <AppText tone="muted">On iPhone, Siri can mark a dose, check the next medication, or give a short status. The screens do the same things.</AppText>
+        <ActionButton label="Hands-off" emphasis="quiet" onPress={() => router.push("/hands-off")} />
+      </Card>
       <Card style={{ gap: space[6] }}>
         <ChoiceGroup
           label="Parent mode"

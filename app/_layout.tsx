@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ThemeProvider, useTheme } from "@/components/theme";
+import { IntentBridge } from "@/components/IntentBridge";
 
 export { ErrorBoundary } from "@/components/CareError";
 
@@ -27,10 +28,12 @@ function NavigationShell() {
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: "center" }}>
         <View style={{ flex: 1, width: "100%", maxWidth: 480, backgroundColor: colors.bg }}>
+          <IntentBridge />
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "PrimaLux Care" }} />
             <Stack.Screen name="health" options={{ headerShown: false, title: "Apple Health" }} />
             <Stack.Screen name="scan" options={{ headerShown: false, title: "Scan a label" }} />
+            <Stack.Screen name="hands-off" options={{ headerShown: false, title: "Hands-off" }} />
           </Stack>
         </View>
       </View>

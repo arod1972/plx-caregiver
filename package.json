@@ -10,6 +10,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "expo": "~58.0.21",
+    "expo-app-intents": "~0.5.14",
     "expo-camera": "~58.0.14",
     "expo-constants": "~58.0.14",
     "expo-font": "~58.0.11",
@@ -45,7 +46,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test lib/mesh/mesh.test.mjs lib/mesh/calendar.test.mjs lib/mesh/medications.test.mjs lib/mesh/tasks.test.mjs lib/mesh/posts.test.mjs lib/mesh/security.test.mjs lib/health/summary.test.mjs lib/scan/match.test.mjs",
+    "test": "node --test lib/mesh/mesh.test.mjs lib/mesh/calendar.test.mjs lib/mesh/medications.test.mjs lib/mesh/tasks.test.mjs lib/mesh/posts.test.mjs lib/mesh/security.test.mjs lib/health/summary.test.mjs lib/scan/match.test.mjs lib/intents/actions.test.mjs",
     "postinstall": "node scripts/copy-ocr.mjs"
   },
   "private": true
