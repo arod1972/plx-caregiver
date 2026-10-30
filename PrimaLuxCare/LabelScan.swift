@@ -303,6 +303,10 @@ final class LabelCapture: NSObject, ObservableObject {
     private var steadyHits = 0
     private var seenBarcode = ""
     private var seenLink = ""
+    private var codePass = 0
+    private var busy = false
+    private var shown = LabelReading()
+    private var shownHint = ""
 
     var paused: Bool {
         get {
@@ -317,11 +321,24 @@ final class LabelCapture: NSObject, ObservableObject {
         }
     }
 
-    func start() {
-        guard !started else { return }
-        started = true
+    func start(front: Bool) {
         queue.async { [weak self] in
-            self?.configure()
+            guard let self else { return }
+            self.position = front ? .front : .back
+            if self.started {
+                guard !self.session.isRunning else { return }
+                self.installCamera(self.position)
+                self.applyRotation()
+                self.beginHold()
+                self.session.startRunning()
+                DispatchQueue.main.async {
+                    self.usingFront = front
+                    self.cameraOn = true
+                }
+                return
+            }
+            self.started = true
+            self.configure()
         }
     }
 
@@ -344,8 +361,9 @@ final class LabelCapture: NSObject, ObservableObject {
 
     func stop() {
         queue.async { [weak self] in
-            guard let self, self.session.isRunning else { return }
-            self.session.stopRunning()
+            guard let self else { return }
+            if self.session.isRunning { self.session.stopRunning() }
+            DispatchQueue.main.async { self.cameraOn = false }
         }
     }
 
@@ -386,8 +404,12 @@ final class LabelCapture: NSObject, ObservableObject {
 
     private func configure() {
         session.beginConfiguration()
-        session.sessionPreset = .hd1920x1080
-        installCamera(.back)
+        if session.canSetSessionPreset(.hd1280x720) {
+            session.sessionPreset = .hd1280x720
+        } else {
+            session.sessionPreset = .high
+        }
+        installCamera(position)
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
         videoOutput.setSampleBufferDelegate(self, queue: queue)
@@ -401,7 +423,10 @@ final class LabelCapture: NSObject, ObservableObject {
         session.startRunning()
         applyRotation()
         beginHold()
-        DispatchQueue.main.async { self.cameraOn = true }
+        DispatchQueue.main.async {
+            self.usingFront = self.position == .front
+            self.cameraOn = true
+        }
     }
 
     private func installCamera(_ position: AVCaptureDevice.Position) {
@@ -474,6 +499,9 @@ final class LabelCapture: NSObject, ObservableObject {
         let nextHint = steadyHits > 0 && steadyHits < 3
             ? "Seeing \(steadyName). Hold still."
             : LabelParser.hint(for: next)
+        guard next != shown || nextHint != shownHint else { return }
+        shown = next
+        shownHint = nextHint
         DispatchQueue.main.async {
             guard !self.paused else { return }
             self.reading = next
@@ -510,19 +538,24 @@ private struct SeenLine {
 extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         let now = Date()
-        guard now.timeIntervalSince(lastPass) > 0.35 else { return }
+        guard now.timeIntervalSince(lastPass) > 0.8 else { return }
+        guard !busy else { return }
         lastPass = now
         guard !paused, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         if Date() < settleUntil {
             DispatchQueue.main.async {
                 guard !self.paused else { return }
+                if self.hint == "Hold the bottle still. The name is kept once it stops changing." { return }
                 self.reading = LabelReading()
                 self.hint = "Hold the bottle still. The name is kept once it stops changing."
             }
             return
         }
+        busy = true
+        defer { busy = false }
+        codePass += 1
         let textRequest = VNRecognizeTextRequest()
-        textRequest.recognitionLevel = .accurate
+        textRequest.recognitionLevel = .fast
         textRequest.usesLanguageCorrection = true
         textRequest.recognitionLanguages = ["en-US"]
         textRequest.minimumTextHeight = 0.008
@@ -532,9 +565,10 @@ extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
             "tablets", "capsules", "refills", "pharmacy", "Walgreens", "CVS"
         ]
         let codes = VNDetectBarcodesRequest()
-        codes.symbologies = [.qr, .code128, .code39, .code93, .pdf417, .dataMatrix, .ean13, .ean8]
+        codes.symbologies = [.qr, .code128, .code39, .code93, .pdf417, .dataMatrix]
+        let requests: [VNRequest] = codePass.isMultiple(of: 3) ? [textRequest, codes] : [textRequest]
         let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: .up)
-        try? handler.perform([textRequest, codes])
+        try? handler.perform(requests)
         let observations = textRequest.results ?? []
         for observation in observations {
             guard let candidate = observation.topCandidates(1).first else { continue }

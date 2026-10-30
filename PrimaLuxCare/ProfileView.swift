@@ -12,6 +12,7 @@ struct ProfileView: View {
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("textSize") private var textSize = "standard"
     @AppStorage("parentMode") private var parentMode = false
+    @AppStorage("scanCamera") private var scanCamera = "back"
     @AppStorage("deviceName") private var deviceName = ""
     @State private var inviteRole = "family"
     @State private var inviteText = ""
@@ -158,6 +159,7 @@ struct ProfileView: View {
                 .buttonStyle(.plain)
                 MetalCard(padding: 18) {
                     VStack(alignment: .leading, spacing: 16) {
+                        setting("Label camera", selection: $scanCamera, options: [("back", "Back"), ("front", "Front")])
                         setting("Parent mode", selection: Binding(
                             get: { parentMode ? "on" : "off" },
                             set: { parentMode = $0 == "on" }

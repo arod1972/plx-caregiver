@@ -7,6 +7,8 @@ struct MedsView: View {
     @Query(sort: \Dose.timeMinutes) private var doses: [Dose]
     @AppStorage("parentMode") private var parentMode = false
     @State private var adding = false
+    @State private var choosing = false
+    @State private var scanning = false
     @State private var editing: Dose?
 
     var body: some View {
@@ -38,13 +40,6 @@ struct MedsView: View {
                         }
                     }
                 }
-                if canEdit {
-                    NavigationLink { ScanView() } label: {
-                        Text("Scan a label")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(palette.sage)
-                    }
-                }
                 if parentMode && canView {
                     MetalButton(title: "Read aloud", filled: false) {
                         let text = doses.map { "\($0.name), \($0.dosage), at \(CareClock.label(minutes: $0.timeMinutes))." }.joined(separator: " ")
@@ -58,7 +53,7 @@ struct MedsView: View {
                 if canEdit {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        adding = true
+                        choosing = true
                     } label: {
                         Image(systemName: "plus")
                             .font(.body.weight(.semibold))
@@ -71,6 +66,16 @@ struct MedsView: View {
                     .accessibilityLabel("Add a medication")
                 }
                 }
+            }
+            .confirmationDialog("Add a medication", isPresented: $choosing, titleVisibility: .visible) {
+                Button("Scan a label") { scanning = true }
+                Button("Type it in") { adding = true }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Scan the bottle, or type the name yourself.")
+            }
+            .navigationDestination(isPresented: $scanning) {
+                ScanView()
             }
             .sheet(isPresented: $adding) { DoseEditor(dose: nil) }
             .sheet(item: $editing) { dose in DoseEditor(dose: dose) }
