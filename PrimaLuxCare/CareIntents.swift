@@ -7,7 +7,7 @@ struct MarkDoseTakenIntent: AppIntent {
     static var openAppWhenRun = true
 
     @Parameter(title: "Medication")
-    var medication: String = ""
+    var medication: String
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let spoken = medication
@@ -54,7 +54,7 @@ struct AddTaskIntent: AppIntent {
     static var openAppWhenRun = true
 
     @Parameter(title: "Task")
-    var titleText: String = ""
+    var titleText: String
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let spoken = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
