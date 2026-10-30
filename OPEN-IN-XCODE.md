@@ -3,11 +3,9 @@
 The iPhone app is native SwiftUI. Do not use npm, Expo, or CocoaPods.
 
 1. Open `PrimaLuxCare.xcodeproj`.
-2. Select an iPhone simulator.
-3. Press Run.
+2. If Xcode asks for a team, select your Personal Team once. The simulator usually does not need it. A physical iPhone does.
+3. Select an iPhone simulator and press Run.
 
-Care is stored on that simulator with SwiftData. The first launch already has two morning doses, a clinic visit, a task, and a note, so the screens are not blank.
+The first launch creates this phone’s key, a family circle, two morning doses, a clinic visit, a task, and a note. Profile holds the invite, permissions, Apple Health, and the on-device log. Medications can scan a label. Siri phrases are Mark taken, Today’s care, and Add a task.
 
-A physical iPhone needs your team selected once under Signing & Capabilities. The simulator does not.
-
-Apple Health, the camera, and Siri are not in this build. They are later tasks.
+Apple Health needs the HealthKit capability, which is already in the entitlements file. If signing fails, pick the team under Signing & Capabilities and leave HealthKit on.

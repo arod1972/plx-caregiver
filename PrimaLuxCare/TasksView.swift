@@ -4,7 +4,7 @@ import SwiftData
 struct TasksView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
-    @Query(sort: \Errand.title) private var errands: [Errand]
+    @Query(sort: \Errand.updatedAt) private var errands: [Errand]
     @AppStorage("parentMode") private var parentMode = false
     @State private var adding = false
 
@@ -13,12 +13,16 @@ struct TasksView: View {
 
     var body: some View {
         let palette = Palette.current(scheme)
+        let canEdit = CareAccess.allows("tasks", edit: true, context: context)
+        let canView = CareAccess.allows("tasks", edit: false, context: context)
         NavigationStack {
             CareScreen {
                 Text(parentMode ? "What needs doing." : "Errands, rides, and follow-ups.")
                     .font(.subheadline)
                     .foregroundStyle(palette.muted)
-                if openItems.isEmpty {
+                if !canView {
+                    EmptyCare(title: "Not shared", bodyText: "Tasks are not on this phone for your role.")
+                } else if openItems.isEmpty {
                     EmptyCare(title: "Nothing to do", bodyText: "Errands and follow-ups will appear here.")
                 } else {
                     MetalCard {
@@ -29,7 +33,7 @@ struct TasksView: View {
                         }
                     }
                 }
-                if !doneItems.isEmpty {
+                if canView && !doneItems.isEmpty {
                     Text("DONE")
                         .font(.caption.weight(.semibold))
                         .tracking(1.6)
@@ -52,6 +56,7 @@ struct TasksView: View {
             .navigationTitle("Tasks")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                if canEdit {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { adding = true } label: {
                         Image(systemName: "plus")
@@ -63,6 +68,7 @@ struct TasksView: View {
                             .overlay { Circle().strokeBorder(palette.metalLight.opacity(0.8), lineWidth: 1) }
                     }
                     .accessibilityLabel("Add a task")
+                }
                 }
             }
             .sheet(isPresented: $adding) { TaskEditor() }
@@ -80,8 +86,12 @@ struct TasksView: View {
             }
             Spacer(minLength: 0)
             DoseMark(done: false) {
+                guard CareAccess.allows("tasks", edit: true, context: context) || item.assignee == "You" else { return }
                 item.isDone = true
                 item.completedAt = .now
+                item.updatedAt = .now
+                AuditLog.record(context, action: "task.done", resource: item.uid.uuidString)
+                try? context.save()
             }
             .accessibilityLabel("Mark \(item.title) done")
         }
@@ -153,12 +163,16 @@ struct TaskEditor: View {
                     DatePicker("Due", selection: $due, displayedComponents: .date)
                 }
                 MetalButton(title: "Save") {
-                    context.insert(Errand(
+                    let created = Errand(
                         title: title.trimmingCharacters(in: .whitespaces),
                         notes: notes.trimmingCharacters(in: .whitespaces),
                         assignee: assignee.trimmingCharacters(in: .whitespaces),
                         dueOn: hasDue ? due : nil
-                    ))
+                    )
+                    context.insert(created)
+                    AuditLog.record(context, action: "task.save", resource: created.uid.uuidString)
+                    try? context.save()
+                    CareReminders.schedule(errand: created)
                     dismiss()
                 }
                 .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
