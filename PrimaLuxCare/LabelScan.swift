@@ -14,6 +14,7 @@ struct LabelReading: Equatable {
     var pharmacy = ""
     var patient = ""
     var barcode = ""
+    var link = ""
 
     var canAdd: Bool { drugName.count >= 3 }
 
@@ -56,6 +57,7 @@ enum LabelParser {
         kept.instructions = keepSig(old.instructions, new.instructions)
         if kept.rxNumber.isEmpty { kept.rxNumber = new.rxNumber }
         if kept.barcode.isEmpty { kept.barcode = new.barcode }
+        if kept.link.isEmpty { kept.link = new.link }
         if kept.rxNumber.isEmpty { kept.rxNumber = rx(fromBarcode: new.barcode) }
         if kept.quantity.isEmpty { kept.quantity = new.quantity }
         if kept.refills.isEmpty { kept.refills = new.refills }
@@ -108,6 +110,11 @@ enum LabelParser {
         let digits = compact.filter(\.isNumber)
         guard (6...16).contains(digits.count) else { return "" }
         return compact
+    }
+
+    static func isPharmacyLink(_ payload: String) -> Bool {
+        let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")
     }
 
     private static func bestDrug(in lines: [String]) -> (name: String, dosage: String) {
@@ -295,6 +302,7 @@ final class LabelCapture: NSObject, ObservableObject {
     private var steadyName = ""
     private var steadyHits = 0
     private var seenBarcode = ""
+    private var seenLink = ""
 
     var paused: Bool {
         get {
@@ -359,6 +367,7 @@ final class LabelCapture: NSObject, ObservableObject {
         steadyName = ""
         steadyHits = 0
         seenBarcode = ""
+        seenLink = ""
         lines.removeAll()
         locked = LabelReading()
     }
@@ -458,6 +467,7 @@ final class LabelCapture: NSObject, ObservableObject {
         let ordered = stable.sorted { $0.midY > $1.midY }.map(\.text)
         var parsed = LabelParser.parse(ordered)
         parsed.barcode = seenBarcode
+        parsed.link = seenLink
         if parsed.rxNumber.isEmpty { parsed.rxNumber = LabelParser.rx(fromBarcode: seenBarcode) }
         locked = steady(parsed)
         let next = locked
@@ -473,15 +483,19 @@ final class LabelCapture: NSObject, ObservableObject {
 
     private func steady(_ parsed: LabelReading) -> LabelReading {
         let name = parsed.drugName
-        guard LabelParser.isSettledName(name) else { return locked }
+        var waiting = locked
+        if waiting.barcode.isEmpty { waiting.barcode = parsed.barcode }
+        if waiting.link.isEmpty { waiting.link = parsed.link }
+        if waiting.rxNumber.isEmpty { waiting.rxNumber = parsed.rxNumber }
+        guard LabelParser.isSettledName(name) else { return waiting }
         if name.lowercased() == steadyName.lowercased() {
             steadyHits += 1
         } else {
             steadyName = name
             steadyHits = 1
         }
-        guard steadyHits >= 3 else { return locked }
-        return LabelParser.keep(locked, parsed)
+        guard steadyHits >= 3 else { return waiting }
+        return LabelParser.keep(waiting, parsed)
     }
 }
 
@@ -530,7 +544,11 @@ extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
             guard let payload = code.payloadStringValue else { continue }
             let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
             guard trimmed.count > 3 else { continue }
-            if seenBarcode.isEmpty { seenBarcode = trimmed }
+            if LabelParser.isPharmacyLink(trimmed) {
+                if seenLink.isEmpty { seenLink = trimmed }
+            } else if seenBarcode.isEmpty {
+                seenBarcode = trimmed
+            }
             let rx = LabelParser.rx(fromBarcode: trimmed)
             if locked.rxNumber.isEmpty, !rx.isEmpty { locked.rxNumber = rx }
         }
