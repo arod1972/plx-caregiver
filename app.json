@@ -77,10 +77,14 @@
           "isClinicalDataEnabled": false,
           "healthConnectPermissions": []
         }
-      ]
+      ],
+      "expo-app-intents"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "inlineModules": {
+        "watchedDirectories": ["app-intents"]
+      }
     }
   }
 }
