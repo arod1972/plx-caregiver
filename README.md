@@ -11,4 +11,4 @@ npx expo start
 
 Web: `npx expo start --web`
 
-Product decisions live in [SPEC.md](./SPEC.md).
+Product decisions live in [SPEC.md](./SPEC.md). The iOS build commands for Xcode and EAS are in [ios-deploy.md](./ios-deploy.md).
