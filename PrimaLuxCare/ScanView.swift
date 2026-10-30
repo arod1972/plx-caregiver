@@ -15,7 +15,7 @@ struct ScanView: View {
         let palette = Palette.current(scheme)
         ZStack(alignment: .bottom) {
             if capture.cameraOn {
-                LabelPreview(session: capture.session, front: capture.usingFront)
+                LabelPreview(session: capture.session, front: capture.usingFront, rotation: capture.previewRotation)
                     .ignoresSafeArea()
             } else {
                 palette.canvas.ignoresSafeArea()
@@ -40,6 +40,10 @@ struct ScanView: View {
                     MetalButton(title: "Use this label") { beginReview() }
                         .disabled(!capture.reading.canAdd)
                         .opacity(capture.reading.canAdd ? 1 : 0.45)
+                    Button("Start over") { capture.restart() }
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minHeight: 44)
+                        .foregroundStyle(palette.sage)
                 }
                 Text("The picture is not kept. Nothing is added until you confirm it.")
                     .font(.caption)
