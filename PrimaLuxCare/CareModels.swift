@@ -42,6 +42,11 @@ final class Dose {
     var refillOn: Date?
     var takenLog: [Date]
     var updatedAt: Date
+    var instructionsBox: Data = Data()
+    var rxBox: Data = Data()
+    var quantityText: String = ""
+    var refillsText: String = ""
+    var pharmacyBox: Data = Data()
 
     var name: String {
         get { Vault.open(nameBox) }
@@ -53,7 +58,32 @@ final class Dose {
         set { dosageBox = Vault.seal(newValue); updatedAt = .now }
     }
 
-    init(name: String, dosage: String, timeMinutes: Int, refillOn: Date? = nil) {
+    var instructions: String {
+        get { Vault.open(instructionsBox) }
+        set { instructionsBox = Vault.seal(newValue); updatedAt = .now }
+    }
+
+    var rxNumber: String {
+        get { Vault.open(rxBox) }
+        set { rxBox = Vault.seal(newValue); updatedAt = .now }
+    }
+
+    var pharmacy: String {
+        get { Vault.open(pharmacyBox) }
+        set { pharmacyBox = Vault.seal(newValue); updatedAt = .now }
+    }
+
+    init(
+        name: String,
+        dosage: String,
+        timeMinutes: Int,
+        refillOn: Date? = nil,
+        instructions: String = "",
+        rxNumber: String = "",
+        quantity: String = "",
+        refills: String = "",
+        pharmacy: String = ""
+    ) {
         self.uid = UUID()
         self.nameBox = Vault.seal(name)
         self.dosageBox = Vault.seal(dosage)
@@ -61,6 +91,11 @@ final class Dose {
         self.refillOn = refillOn
         self.takenLog = []
         self.updatedAt = .now
+        self.instructionsBox = Vault.seal(instructions)
+        self.rxBox = Vault.seal(rxNumber)
+        self.quantityText = quantity
+        self.refillsText = refills
+        self.pharmacyBox = Vault.seal(pharmacy)
     }
 }
 

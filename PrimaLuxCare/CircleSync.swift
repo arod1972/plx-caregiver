@@ -48,6 +48,11 @@ private struct DoseDTO: Codable {
     var refillOn: Date?
     var takenLog: [Date]
     var updatedAt: Date
+    var instructions: String?
+    var rxNumber: String?
+    var quantity: String?
+    var refills: String?
+    var pharmacy: String?
 }
 
 private struct ErrandDTO: Codable {
@@ -160,7 +165,7 @@ enum CircleSync {
         let members = (try? context.fetch(FetchDescriptor<Member>())) ?? []
         let body = PackageBody(
             events: events.map { EventDTO(uid: $0.uid, title: $0.title, kind: $0.kind, startsAt: $0.startsAt, repeatRule: $0.repeatRule, notes: $0.notes, updatedAt: $0.updatedAt) },
-            doses: doses.map { DoseDTO(uid: $0.uid, name: $0.name, dosage: $0.dosage, timeMinutes: $0.timeMinutes, refillOn: $0.refillOn, takenLog: $0.takenLog, updatedAt: $0.updatedAt) },
+            doses: doses.map { DoseDTO(uid: $0.uid, name: $0.name, dosage: $0.dosage, timeMinutes: $0.timeMinutes, refillOn: $0.refillOn, takenLog: $0.takenLog, updatedAt: $0.updatedAt, instructions: $0.instructions, rxNumber: $0.rxNumber, quantity: $0.quantityText, refills: $0.refillsText, pharmacy: $0.pharmacy) },
             errands: errands.map { ErrandDTO(uid: $0.uid, title: $0.title, notes: $0.notes, assignee: $0.assignee, dueOn: $0.dueOn, isDone: $0.isDone, completedAt: $0.completedAt, updatedAt: $0.updatedAt) },
             notes: notes.map { NoteDTO(uid: $0.uid, author: $0.author, body: $0.body, sentAt: $0.sentAt, updatedAt: $0.updatedAt) },
             grants: grants.map { GrantDTO(role: $0.role, area: $0.area, access: $0.access) },
@@ -240,9 +245,24 @@ enum CircleSync {
                 found.timeMinutes = item.timeMinutes
                 found.refillOn = item.refillOn
                 found.takenLog = item.takenLog
+                found.instructions = item.instructions ?? found.instructions
+                found.rxNumber = item.rxNumber ?? found.rxNumber
+                found.quantityText = item.quantity ?? found.quantityText
+                found.refillsText = item.refills ?? found.refillsText
+                found.pharmacy = item.pharmacy ?? found.pharmacy
                 found.updatedAt = item.updatedAt
             } else {
-                let created = Dose(name: item.name, dosage: item.dosage, timeMinutes: item.timeMinutes, refillOn: item.refillOn)
+                let created = Dose(
+                    name: item.name,
+                    dosage: item.dosage,
+                    timeMinutes: item.timeMinutes,
+                    refillOn: item.refillOn,
+                    instructions: item.instructions ?? "",
+                    rxNumber: item.rxNumber ?? "",
+                    quantity: item.quantity ?? "",
+                    refills: item.refills ?? "",
+                    pharmacy: item.pharmacy ?? ""
+                )
                 created.uid = item.uid
                 created.takenLog = item.takenLog
                 created.updatedAt = item.updatedAt

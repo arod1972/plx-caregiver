@@ -1,119 +1,174 @@
 import SwiftUI
 import SwiftData
-import VisionKit
 
 struct ScanView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.dismiss) private var dismiss
     @Query(sort: \Dose.timeMinutes) private var doses: [Dose]
-    @State private var showCamera = false
-    @State private var reading = ""
-    @State private var matched: Dose?
-    @State private var message = "The photo is read on this iPhone and is not saved."
+    @StateObject private var capture = LabelCapture()
+    @State private var typed = ""
+    @State private var draft = LabelReading()
+    @State private var reviewing = false
+    @State private var message = ""
 
     var body: some View {
         let palette = Palette.current(scheme)
-        CareScreen {
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(palette.muted)
-            if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
-                MetalButton(title: "Scan a label") { showCamera = true }
+        ZStack(alignment: .bottom) {
+            if capture.cameraOn {
+                LabelPreview(session: capture.session)
+                    .ignoresSafeArea()
             } else {
-                Text("This simulator has no camera. Type the words on the label.")
+                palette.canvas.ignoresSafeArea()
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                Text(capture.cameraOn ? capture.hint : "This simulator has no camera. Paste the words from the label.")
                     .font(.subheadline)
+                    .foregroundStyle(palette.ink)
+                if !capture.cameraOn {
+                    CareField(label: "Words on the label", text: $typed, prompt: "Lisinopril 10 mg\nTake 1 tablet by mouth daily")
+                    MetalButton(title: "Read the label", filled: false) {
+                        draft = LabelParser.parse(typed.components(separatedBy: .newlines))
+                        reviewing = true
+                    }
+                } else {
+                    found(palette)
+                    MetalButton(title: "Use this label") { beginReview() }
+                        .disabled(!capture.reading.canAdd)
+                        .opacity(capture.reading.canAdd ? 1 : 0.45)
+                }
+                Text("The picture is not kept. Nothing is added until you confirm it.")
+                    .font(.caption)
                     .foregroundStyle(palette.muted)
             }
-            CareField(label: "Words on the label", text: $reading, prompt: "Lisinopril 10 mg")
-            MetalButton(title: "Match", filled: false) { match() }
-            if let matched {
-                MetalCard(padding: 18) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(matched.name).font(.headline)
-                        Text(matched.dosage.isEmpty ? "Matched." : matched.dosage)
-                            .foregroundStyle(palette.muted)
-                        MetalButton(title: CareClock.takenToday(matched) ? "Mark not taken" : "Mark taken") {
-                            CareClock.toggleTaken(matched)
-                            AuditLog.record(context, action: "dose.scan", resource: matched.uid.uuidString)
-                            try? context.save()
-                            message = CareClock.takenToday(matched) ? "Marked taken." : "Marked not taken."
-                        }
-                    }
-                }
-            }
+            .padding(16)
+            .background(palette.paper)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
         }
         .navigationTitle("Scan a label")
         .navigationBarTitleDisplayMode(.inline)
-        .background(palette.canvas.ignoresSafeArea())
-        .sheet(isPresented: $showCamera) {
-            LabelScanner { text in
-                reading = text
-                showCamera = false
-                match()
-            }
+        .onAppear { capture.start() }
+        .onDisappear { capture.stop() }
+        .sheet(isPresented: $reviewing) {
+            review(palette)
         }
     }
 
-    private func match() {
-        let hay = reading.lowercased()
-        guard !hay.trimmingCharacters(in: .whitespaces).isEmpty else {
-            matched = nil
-            message = "Nothing to match yet."
-            return
+    private func found(_ palette: Palette) -> some View {
+        let reading = capture.reading
+        VStack(alignment: .leading, spacing: 4) {
+            line("Medicine", reading.drugName.isEmpty ? "Still looking" : reading.drugName, palette: palette)
+            line("Dose", reading.dosage, palette: palette)
+            line("Directions", reading.instructions, palette: palette)
+            line("Rx", reading.rxNumber, palette: palette)
+            line("Qty", reading.quantity, palette: palette)
+            line("Refills", reading.refills, palette: palette)
+            line("Pharmacy", reading.pharmacy, palette: palette)
         }
-        var best: (Dose, Double)?
-        for dose in doses {
-            let name = dose.name.lowercased()
-            guard !name.isEmpty else { continue }
-            if hay.contains(name) {
-                matched = dose
-                message = "Matched \(dose.name)."
-                return
+    }
+
+    private func line(_ title: String, _ value: String, palette: Palette) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.metal)
+                .frame(width: 78, alignment: .leading)
+            Text(value.isEmpty ? "—" : value)
+                .font(.subheadline)
+                .foregroundStyle(value.isEmpty ? palette.muted : palette.ink)
+                .lineLimit(2)
+        }
+    }
+
+    private func review(_ palette: Palette) -> some View {
+        let match = matchedDose(draft.drugName)
+        return NavigationStack {
+            CareScreen {
+                if !message.isEmpty {
+                    Text(message).font(.subheadline).foregroundStyle(palette.sage)
+                }
+                if !draft.patient.isEmpty {
+                    Text("The label is for \(draft.patient). That name is not saved.")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.muted)
+                }
+                CareField(label: "Medicine", text: $draft.drugName, prompt: "Lisinopril")
+                CareField(label: "Dose", text: $draft.dosage, prompt: "10 mg")
+                CareField(label: "Directions", text: $draft.instructions, prompt: "Take 1 tablet by mouth daily")
+                CareField(label: "Rx number", text: $draft.rxNumber, prompt: "Optional")
+                CareField(label: "Quantity", text: $draft.quantity, prompt: "30")
+                CareField(label: "Refills", text: $draft.refills, prompt: "3")
+                CareField(label: "Pharmacy", text: $draft.pharmacy, prompt: "Optional")
+                if let match {
+                    Text("\(match.name) is already on the list.")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.muted)
+                    MetalButton(title: "Update \(match.name)") { save(into: match) }
+                    MetalButton(title: CareClock.takenToday(match) ? "Mark not taken" : "Mark taken", filled: false) {
+                        CareClock.toggleTaken(match)
+                        AuditLog.record(context, action: "dose.scan", resource: match.uid.uuidString)
+                        try? context.save()
+                        message = CareClock.takenToday(match) ? "Marked taken." : "Marked not taken."
+                    }
+                }
+                MetalButton(title: "Add medication", filled: match == nil) { save(into: nil) }
+                    .disabled(draft.drugName.trimmingCharacters(in: .whitespaces).count < 3)
+                MetalButton(title: "Keep scanning", filled: false) {
+                    reviewing = false
+                    capture.paused = false
+                }
             }
-            let tokens = name.split(separator: " ")
-            let hits = tokens.filter { hay.contains($0) }.count
-            let score = Double(hits) / Double(max(tokens.count, 1))
-            if best == nil || score > best!.1 { best = (dose, score) }
+            .navigationTitle("Check the label")
+            .navigationBarTitleDisplayMode(.inline)
         }
-        if let best, best.1 >= 0.8 {
-            matched = best.0
-            message = "Matched \(best.0.name)."
+        .presentationDetents([.large])
+        .tint(palette.sage)
+    }
+
+    private func beginReview() {
+        draft = capture.reading
+        capture.paused = true
+        reviewing = true
+    }
+
+    private func matchedDose(_ name: String) -> Dose? {
+        let needle = name.lowercased().trimmingCharacters(in: .whitespaces)
+        guard needle.count >= 4 else { return nil }
+        return doses.first { $0.name.lowercased() == needle }
+            ?? doses.first { needle.contains($0.name.lowercased()) || $0.name.lowercased().contains(needle) }
+    }
+
+    private func save(into existing: Dose?) {
+        let name = draft.drugName.trimmingCharacters(in: .whitespaces)
+        guard name.count >= 3 else { return }
+        let saved: Dose
+        if let existing {
+            existing.name = name
+            existing.dosage = draft.dosage.trimmingCharacters(in: .whitespaces)
+            existing.instructions = draft.instructions.trimmingCharacters(in: .whitespacesAndNewlines)
+            existing.rxNumber = draft.rxNumber.trimmingCharacters(in: .whitespaces)
+            existing.quantityText = draft.quantity.trimmingCharacters(in: .whitespaces)
+            existing.refillsText = draft.refills.trimmingCharacters(in: .whitespaces)
+            existing.pharmacy = draft.pharmacy.trimmingCharacters(in: .whitespacesAndNewlines)
+            saved = existing
         } else {
-            matched = nil
-            message = "No saved medication matches that label."
+            let created = Dose(
+                name: name,
+                dosage: draft.dosage.trimmingCharacters(in: .whitespaces),
+                timeMinutes: draft.suggestedMinutes,
+                instructions: draft.instructions.trimmingCharacters(in: .whitespacesAndNewlines),
+                rxNumber: draft.rxNumber.trimmingCharacters(in: .whitespaces),
+                quantity: draft.quantity.trimmingCharacters(in: .whitespaces),
+                refills: draft.refills.trimmingCharacters(in: .whitespaces),
+                pharmacy: draft.pharmacy.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            context.insert(created)
+            saved = created
         }
-    }
-}
-
-struct LabelScanner: UIViewControllerRepresentable {
-    var onText: (String) -> Void
-
-    func makeUIViewController(context: Context) -> DataScannerViewController {
-        let scanner = DataScannerViewController(
-            recognizedDataTypes: [.text()],
-            qualityLevel: .accurate,
-            recognizesMultipleItems: true,
-            isHighFrameRateTrackingEnabled: false,
-            isHighlightingEnabled: true
-        )
-        scanner.delegate = context.coordinator
-        try? scanner.startScanning()
-        return scanner
-    }
-
-    func updateUIViewController(_ uiViewController: DataScannerViewController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator(onText: onText) }
-
-    final class Coordinator: NSObject, DataScannerViewControllerDelegate {
-        var onText: (String) -> Void
-        init(onText: @escaping (String) -> Void) { self.onText = onText }
-
-        func dataScanner(_ dataScanner: DataScannerViewController, didTapOn item: RecognizedItem) {
-            if case .text(let text) = item {
-                onText(text.transcript)
-            }
-        }
+        AuditLog.record(context, action: "medication.scan", resource: saved.uid.uuidString)
+        try? context.save()
+        CareReminders.schedule(dose: saved)
+        message = existing == nil ? "Added \(saved.name)." : "Updated \(saved.name)."
     }
 }
