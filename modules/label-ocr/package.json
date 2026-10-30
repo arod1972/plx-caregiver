@@ -1,0 +1,14 @@
+{
+  "name": "label-ocr",
+  "version": "1.0.0",
+  "description": "On-device medication label reading for PrimaLux Care.",
+  "license": "UNLICENSED",
+  "author": "PrimaLux",
+  "homepage": "https://github.com/arod1972/plx-caregiver",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false,
+  "peerDependencies": {
+    "expo": "*"
+  }
+}

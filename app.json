@@ -12,7 +12,9 @@
       "bundleIdentifier": "com.primalux.caregiver",
       "infoPlist": {
         "NSHealthShareUsageDescription": "PrimaLux Care reads steps, heart rate, and sleep on this iPhone after you allow it. Readings stay on this device unless you choose to share a daily summary.",
-        "NSHealthUpdateUsageDescription": "PrimaLux Care can save a pulse reading you type. It does not change other Apple Health data."
+        "NSHealthUpdateUsageDescription": "PrimaLux Care can save a pulse reading you type. It does not change other Apple Health data.",
+        "NSCameraUsageDescription": "PrimaLux Care uses the camera to read a medication label on this iPhone. The photo is not saved and is not sent.",
+        "NSPhotoLibraryUsageDescription": "PrimaLux Care can read a photo of a medication label that you choose. The photo is not saved and is not sent."
       },
       "entitlements": {
         "com.apple.developer.healthkit": true
@@ -52,6 +54,20 @@
       ],
       "expo-sqlite",
       "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PrimaLux Care uses the camera to read a medication label on this iPhone. The photo is not saved and is not sent.",
+          "microphonePermission": "PrimaLux Care does not record audio.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PrimaLux Care can read a photo of a medication label that you choose. The photo is not saved and is not sent."
+        }
+      ],
       [
         "@appeeky/expo-healthkit",
         {

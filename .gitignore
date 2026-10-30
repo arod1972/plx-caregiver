@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# on-device OCR runtime, copied from node_modules
+/public/ocr/
+/eng.traineddata

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { careStore } from "@/lib/care-store";
-import { adherence, deleteMedication, nextDoseAt, saveMedication, markTaken } from "@/lib/mesh/medications.mjs";
+import { adherence, clearTaken, deleteMedication, nextDoseAt, saveMedication, markTaken } from "@/lib/mesh/medications.mjs";
 import { ensureDevice, readDevice, readSharing, resolveAccess } from "@/lib/mesh/repository.mjs";
 import { clearDoseReminder, remindDose } from "@/lib/remind";
 
@@ -86,5 +86,15 @@ export function useMeds() {
     [refresh],
   );
 
-  return { phase, message, items, canEdit, canView, notice, save, remove, take };
+  const untake = useCallback(
+    async (id: string) => {
+      const db = await careStore();
+      await clearTaken(db, id);
+      setNotice("Marked not taken on this device.");
+      await refresh();
+    },
+    [refresh],
+  );
+
+  return { phase, message, items, canEdit, canView, notice, save, remove, take, untake };
 }
