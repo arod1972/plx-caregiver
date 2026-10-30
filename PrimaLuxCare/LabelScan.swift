@@ -167,6 +167,7 @@ final class LabelCapture: NSObject, ObservableObject {
     @Published var reading = LabelReading()
     @Published var hint = LabelParser.hint(for: LabelReading())
     @Published var cameraOn = false
+    @Published var usingFront = false
     let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "guardian.label.scan")
     private var started = false
@@ -174,6 +175,8 @@ final class LabelCapture: NSObject, ObservableObject {
     private var lines: [String: SeenLine] = [:]
     private let gate = NSLock()
     private var pausedFlag = false
+    private var position: AVCaptureDevice.Position = .back
+    private var visionOrientation: CGImagePropertyOrientation = .right
 
     var paused: Bool {
         get {
@@ -196,6 +199,18 @@ final class LabelCapture: NSObject, ObservableObject {
         }
     }
 
+    func flip() {
+        queue.async { [weak self] in
+            guard let self else { return }
+            let next: AVCaptureDevice.Position = self.position == .back ? .front : .back
+            guard AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: next) != nil else { return }
+            self.position = next
+            self.visionOrientation = next == .front ? .left : .right
+            self.installCamera(next)
+            DispatchQueue.main.async { self.usingFront = next == .front }
+        }
+    }
+
     func stop() {
         queue.async { [weak self] in
             guard let self, self.session.isRunning else { return }
@@ -206,19 +221,7 @@ final class LabelCapture: NSObject, ObservableObject {
     private func configure() {
         session.beginConfiguration()
         session.sessionPreset = .hd1920x1080
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-              let input = try? AVCaptureDeviceInput(device: device),
-              session.canAddInput(input) else {
-            session.commitConfiguration()
-            return
-        }
-        session.addInput(input)
-        try? device.lockForConfiguration()
-        if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
-        if device.isSmoothAutoFocusSupported { device.isSmoothAutoFocusEnabled = true }
-        if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .near }
-        if device.isExposureModeSupported(.continuousAutoExposure) { device.exposureMode = .continuousAutoExposure }
-        device.unlockForConfiguration()
+        installCamera(.back)
         let output = AVCaptureVideoDataOutput()
         output.alwaysDiscardsLateVideoFrames = true
         output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
@@ -231,6 +234,26 @@ final class LabelCapture: NSObject, ObservableObject {
         session.commitConfiguration()
         session.startRunning()
         DispatchQueue.main.async { self.cameraOn = true }
+    }
+
+    private func installCamera(_ position: AVCaptureDevice.Position) {
+        let alreadyConfiguring = session.inputs.isEmpty && !session.isRunning
+        if !alreadyConfiguring { session.beginConfiguration() }
+        for input in session.inputs { session.removeInput(input) }
+        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
+              let input = try? AVCaptureDeviceInput(device: device),
+              session.canAddInput(input) else {
+            if !alreadyConfiguring { session.commitConfiguration() }
+            return
+        }
+        session.addInput(input)
+        try? device.lockForConfiguration()
+        if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
+        if device.isSmoothAutoFocusSupported { device.isSmoothAutoFocusEnabled = true }
+        if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .near }
+        if device.isExposureModeSupported(.continuousAutoExposure) { device.exposureMode = .continuousAutoExposure }
+        device.unlockForConfiguration()
+        if !alreadyConfiguring { session.commitConfiguration() }
     }
 
     private func absorb(text: String, confidence: Float, midY: CGFloat) {
@@ -310,7 +333,7 @@ extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
         ]
         let codes = VNDetectBarcodesRequest()
         codes.symbologies = [.qr]
-        let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: .right)
+        let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: visionOrientation)
         try? handler.perform([textRequest, codes])
         for observation in textRequest.results ?? [] {
             guard let candidate = observation.topCandidates(1).first else { continue }
@@ -328,26 +351,39 @@ extension LabelCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
 
 struct LabelPreview: UIViewRepresentable {
     let session: AVCaptureSession
+    var front: Bool
 
     func makeUIView(context: Context) -> PreviewHost {
         let view = PreviewHost()
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
+        view.front = front
         return view
     }
 
     func updateUIView(_ uiView: PreviewHost, context: Context) {
         uiView.previewLayer.session = session
+        uiView.front = front
     }
 }
 
 final class PreviewHost: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
     var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
+    var front = false { didSet { applyConnection() } }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        guard let connection = previewLayer.connection, connection.isVideoRotationAngleSupported(90) else { return }
-        connection.videoRotationAngle = 90
+        applyConnection()
+    }
+
+    private func applyConnection() {
+        guard let connection = previewLayer.connection else { return }
+        if connection.isVideoRotationAngleSupported(90) {
+            connection.videoRotationAngle = 90
+        }
+        guard connection.isVideoMirroringSupported else { return }
+        connection.automaticallyAdjustsVideoMirroring = false
+        connection.isVideoMirrored = front
     }
 }
