@@ -123,15 +123,20 @@ All shared entities use mergeable semantics so concurrent offline edits converge
 
 **Core Aesthetic:** Calm, trustworthy, warm-professional, modern, and pleasant. Refined Apple Health / system design language crossed with a practical family tool. Premium feel through intentional design, generous whitespace, refined typography, and restraint.
 
+**Critical note:** The prior Expo/React Native implementation failed to deliver the required visual polish (including metallic highlights and a sleek modern appearance). The SwiftUI rebuild must not repeat that failure.
+
+### Requirements
 - Use SF Pro and SF Symbols. Support Dynamic Type.
 - Warm neutrals + one primary accent (soft sage or muted teal). Light and dark modes.
 - Strict spacing grid. Large touch targets (minimum 44pt).
 - Subtle, purposeful motion only.
-- No generic AI aesthetic (gradients, floating orbs, sparkles, cluttered density, stock illustrations).
+- **Intentional metallic highlights:** restrained metallic sheen, soft edge highlights, or subtle gradient borders on primary cards, buttons, and selected tab states. Must feel premium and deliberate, not flashy or overdone. Use system materials or carefully tuned SwiftUI gradients / overlays.
+- No generic AI aesthetic (heavy purple/blue gradients, floating orbs, sparkles, cluttered density, stock illustrations of smiling seniors, emoji overload).
 - Parent mode: extra-large text, simplified views, read-aloud where appropriate.
 - Bottom tabs: Calendar, Tasks, Meds, Updates, Profile.
+- Empty states must be calm and purposeful, not generic placeholders.
 
-Every screen must feel like a polished product a family would trust with sensitive caregiving information.
+Every screen must feel like a polished product a family would trust with sensitive caregiving information. Visual review (screenshots in light and dark mode) is required in every UI-related PR.
 
 ## 9. Living Development Tracker
 
@@ -161,7 +166,7 @@ Every screen must feel like a polished product a family would trust with sensiti
 | 10.10 | Camera | Medication label scan (Vision OCR) to identify and mark dose | Camera opens from Meds; on-device OCR; match or suggest; one-tap mark taken. | Not Started |  | AVFoundation + Vision. |
 | 10.11 | Siri | App Intents for mark taken, query calendar, add task | Common actions available to Siri; full UI still primary. | Not Started |  | App Intents framework. |
 | 10.12 | Security | Encryption at rest, payload encryption, local audit log | Data sealed on device; sensitive actions logged locally. | Not Started |  | CryptoKit. |
-| 10.13 | Polish | Error handling, privacy note, app icon, UI polish against Section 8 | App handles errors gracefully; UI meets design guidelines. | Not Started |  |  |
+| 10.13 | Polish | Error handling, privacy note, app icon, **UI polish against Section 8 including intentional metallic highlights** | App handles errors gracefully. UI is sleek, modern, professional, and pleasant. Metallic highlights are present and restrained. Screenshots in light and dark mode included in PR. | Not Started |  | Previous Expo build failed this requirement. Must be met. |
 
 **Status Values:** Not Started | In Progress | Done | Blocked
 
@@ -174,4 +179,4 @@ Every screen must feel like a polished product a family would trust with sensiti
 
 ---
 
-**Build Agent Kickoff Note:** This SPEC.md is your tracker. The Expo/React Native path is deprecated. Start with task 10.1 (SwiftUI project structure). Update this file after every merge. Reference task IDs in all PRs.
+**Build Agent Kickoff Note:** This SPEC.md is your tracker. The Expo/React Native path is deprecated. Start with task 10.1 (SwiftUI project structure). Section 8 (including metallic highlights) is mandatory. Update this file after every merge. Reference task IDs in all PRs.
