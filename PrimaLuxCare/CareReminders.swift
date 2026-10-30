@@ -54,7 +54,10 @@ enum CareReminders {
     }
 
     static func schedule(errand: Errand) {
-        guard let due = errand.dueOn else { return }
+        guard let due = errand.dueOn else {
+            cancel(errand: errand)
+            return
+        }
         let uid = errand.uid
         let title = errand.title
         let assignee = errand.assignee
@@ -70,6 +73,10 @@ enum CareReminders {
             let request = UNNotificationRequest(identifier: "task-\(uid.uuidString)", content: content, trigger: trigger)
             try? await UNUserNotificationCenter.current().add(request)
         }
+    }
+
+    static func cancel(errand: Errand) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["task-\(errand.uid.uuidString)"])
     }
 
     static func posted(note: CircleNote) {

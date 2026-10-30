@@ -7,6 +7,7 @@ struct TasksView: View {
     @Query(sort: \Errand.updatedAt) private var errands: [Errand]
     @AppStorage("parentMode") private var parentMode = false
     @State private var adding = false
+    @State private var editing: Errand?
 
     private var openItems: [Errand] { errands.filter { !$0.isDone } }
     private var doneItems: [Errand] { errands.filter(\.isDone) }
@@ -28,7 +29,7 @@ struct TasksView: View {
                     MetalCard {
                         VStack(spacing: 0) {
                             ForEach(openItems) { item in
-                                taskRow(item, palette: palette, last: item.uid == openItems.last?.uid)
+                                taskRow(item, palette: palette, last: item.uid == openItems.last?.uid, canEdit: canEdit)
                             }
                         }
                     }
@@ -41,7 +42,7 @@ struct TasksView: View {
                     MetalCard {
                         VStack(spacing: 0) {
                             ForEach(doneItems) { item in
-                                doneRow(item, palette: palette, last: item.uid == doneItems.last?.uid)
+                                doneRow(item, palette: palette, last: item.uid == doneItems.last?.uid, canEdit: canEdit)
                             }
                         }
                     }
@@ -71,20 +72,28 @@ struct TasksView: View {
                 }
                 }
             }
-            .sheet(isPresented: $adding) { TaskEditor() }
+            .sheet(isPresented: $adding) { TaskEditor(errand: nil) }
+            .sheet(item: $editing) { item in TaskEditor(errand: item) }
         }
     }
 
-    private func taskRow(_ item: Errand, palette: Palette, last: Bool) -> some View {
+    private func taskRow(_ item: Errand, palette: Palette, last: Bool, canEdit: Bool) -> some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.headline).foregroundStyle(palette.ink)
-                Text(meta(item)).font(.caption).foregroundStyle(palette.muted)
-                if !item.notes.isEmpty {
-                    Text(item.notes).font(.subheadline).foregroundStyle(palette.muted)
+            Button {
+                guard canEdit else { return }
+                editing = item
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title).font(.headline).foregroundStyle(palette.ink)
+                    Text(meta(item)).font(.caption).foregroundStyle(palette.muted)
+                    if !item.notes.isEmpty {
+                        Text(item.notes).font(.subheadline).foregroundStyle(palette.muted)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer(minLength: 0)
+            .buttonStyle(.plain)
+            .accessibilityLabel(canEdit ? "Edit \(item.title)" : item.title)
             DoseMark(done: false) {
                 guard CareAccess.allows("tasks", edit: true, context: context) || item.assignee == "You" else { return }
                 item.isDone = true
@@ -102,22 +111,33 @@ struct TasksView: View {
         }
     }
 
-    private func doneRow(_ item: Errand, palette: Palette, last: Bool) -> some View {
+    private func doneRow(_ item: Errand, palette: Palette, last: Bool, canEdit: Bool) -> some View {
         HStack(spacing: 12) {
             DoseMark(done: true) {}
                 .accessibilityLabel("Done")
                 .disabled(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.headline).foregroundStyle(palette.ink)
-                Text(doneMeta(item)).font(.caption).foregroundStyle(palette.muted)
+            Button {
+                guard canEdit else { return }
+                editing = item
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title).font(.headline).foregroundStyle(palette.ink)
+                    Text(doneMeta(item)).font(.caption).foregroundStyle(palette.muted)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(canEdit ? "Edit \(item.title)" : item.title)
+            if canEdit {
                 Button("Reopen") {
                     item.isDone = false
                     item.completedAt = nil
+                    item.updatedAt = .now
+                    try? context.save()
                 }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(palette.sage)
             }
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -142,6 +162,7 @@ struct TasksView: View {
 }
 
 struct TaskEditor: View {
+    var errand: Errand?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
@@ -150,6 +171,7 @@ struct TaskEditor: View {
     @State private var assignee = "You"
     @State private var hasDue = false
     @State private var due = Date()
+    @State private var loaded = false
 
     var body: some View {
         let palette = Palette.current(scheme)
@@ -162,26 +184,51 @@ struct TaskEditor: View {
                 if hasDue {
                     DatePicker("Due", selection: $due, displayedComponents: .date)
                 }
-                MetalButton(title: "Save") {
-                    let created = Errand(
-                        title: title.trimmingCharacters(in: .whitespaces),
-                        notes: notes.trimmingCharacters(in: .whitespaces),
-                        assignee: assignee.trimmingCharacters(in: .whitespaces),
-                        dueOn: hasDue ? due : nil
-                    )
-                    context.insert(created)
-                    AuditLog.record(context, action: "task.save", resource: created.uid.uuidString)
-                    try? context.save()
-                    CareReminders.schedule(errand: created)
-                    dismiss()
-                }
-                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                MetalButton(title: "Save") { save() }
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 MetalButton(title: "Close", filled: false) { dismiss() }
             }
-            .navigationTitle("New task")
+            .navigationTitle(errand == nil ? "New task" : "Edit task")
             .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.large])
         .tint(palette.sage)
+        .onAppear {
+            guard !loaded else { return }
+            loaded = true
+            guard let errand else { return }
+            title = errand.title
+            notes = errand.notes
+            assignee = errand.assignee.isEmpty ? "You" : errand.assignee
+            if let dueOn = errand.dueOn {
+                hasDue = true
+                due = dueOn
+            }
+        }
+    }
+
+    private func save() {
+        let cleanedTitle = title.trimmingCharacters(in: .whitespaces)
+        guard !cleanedTitle.isEmpty else { return }
+        let cleanedNotes = notes.trimmingCharacters(in: .whitespaces)
+        let cleanedAssignee = assignee.trimmingCharacters(in: .whitespaces)
+        let dueOn = hasDue ? due : nil
+        let saved: Errand
+        if let errand {
+            errand.title = cleanedTitle
+            errand.notes = cleanedNotes
+            errand.assignee = cleanedAssignee
+            errand.dueOn = dueOn
+            errand.updatedAt = .now
+            saved = errand
+        } else {
+            let created = Errand(title: cleanedTitle, notes: cleanedNotes, assignee: cleanedAssignee, dueOn: dueOn)
+            context.insert(created)
+            saved = created
+        }
+        AuditLog.record(context, action: "task.save", resource: saved.uid.uuidString)
+        try? context.save()
+        CareReminders.schedule(errand: saved)
+        dismiss()
     }
 }
