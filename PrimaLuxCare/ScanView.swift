@@ -79,7 +79,7 @@ struct ScanView: View {
 
     private func found(_ palette: Palette) -> some View {
         let reading = capture.reading
-        VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: 4) {
             line("Medicine", reading.drugName.isEmpty ? "Still looking" : reading.drugName, palette: palette)
             line("Dose", reading.dosage, palette: palette)
             line("Directions", reading.instructions, palette: palette)
