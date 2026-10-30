@@ -33,7 +33,7 @@ struct MedsView: View {
                     MetalCard {
                         VStack(spacing: 0) {
                             ForEach(doses) { dose in
-                                row(dose, palette: palette, last: dose.uid == doses.last?.uid)
+                                row(dose, palette: palette, last: dose.uid == doses.last?.uid, canEdit: canEdit)
                             }
                         }
                     }
@@ -77,7 +77,7 @@ struct MedsView: View {
         }
     }
 
-    private func row(_ dose: Dose, palette: Palette, last: Bool) -> some View {
+    private func row(_ dose: Dose, palette: Palette, last: Bool, canEdit: Bool) -> some View {
         HStack(spacing: 12) {
             Button {
                 editing = dose
