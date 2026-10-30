@@ -7,16 +7,15 @@ struct MarkDoseTakenIntent: AppIntent {
     static var openAppWhenRun = true
 
     @Parameter(title: "Medication")
-    var medication: String
+    var medication: DoseEntity
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let spoken = medication
+        let chosen = medication
         let message: String = await MainActor.run {
             let context = ModelContext(CareDatabase.container)
             let doses = (try? context.fetch(FetchDescriptor<Dose>())) ?? []
-            let needle = spoken.lowercased()
-            guard let dose = doses.first(where: { $0.name.lowercased() == needle }) ?? doses.first(where: { $0.name.lowercased().contains(needle) }) else {
-                return "No medication named \(spoken)."
+            guard let dose = doses.first(where: { $0.uid == chosen.id }) ?? doses.first(where: { $0.name.lowercased() == chosen.name.lowercased() }) else {
+                return "That medication is not on this phone."
             }
             if !CareClock.takenToday(dose) {
                 CareClock.toggleTaken(dose)
@@ -69,6 +68,36 @@ struct AddTaskIntent: AppIntent {
             return "Added \(spoken)."
         }
         return .result(dialog: IntentDialog(stringLiteral: message))
+    }
+}
+
+struct DoseEntity: AppEntity {
+    var id: UUID
+    var name: String
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Medication")
+    static var defaultQuery = DoseQuery()
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+struct DoseQuery: EntityQuery {
+    func entities(for identifiers: [DoseEntity.ID]) async throws -> [DoseEntity] {
+        await all().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [DoseEntity] {
+        await all()
+    }
+
+    private func all() async -> [DoseEntity] {
+        await MainActor.run {
+            let context = ModelContext(CareDatabase.container)
+            let doses = (try? context.fetch(FetchDescriptor<Dose>())) ?? []
+            return doses.map { DoseEntity(id: $0.uid, name: $0.name) }
+        }
     }
 }
 
