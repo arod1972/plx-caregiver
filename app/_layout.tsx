@@ -30,6 +30,7 @@ function NavigationShell() {
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "PrimaLux Care" }} />
             <Stack.Screen name="health" options={{ headerShown: false, title: "Apple Health" }} />
+            <Stack.Screen name="scan" options={{ headerShown: false, title: "Scan a label" }} />
           </Stack>
         </View>
       </View>

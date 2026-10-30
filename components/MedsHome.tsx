@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "@/components/theme";
@@ -99,6 +100,9 @@ export function MedsHome() {
             setDraft({ name: "", time: "08:00", dosage: "", refillOn: "" });
           }}
         />
+      ) : null}
+      {meds.phase === "ready" && meds.canView && !draft && meds.canEdit ? (
+        <ActionButton label="Scan a label" emphasis="quiet" onPress={() => router.push("/scan")} />
       ) : null}
       {meds.phase === "ready" && meds.canView && !draft && meds.items.length === 0 ? (
         <EmptyState title="No medications" body="Doses you add will appear here." icon="pill" />
