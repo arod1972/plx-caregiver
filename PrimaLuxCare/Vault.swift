@@ -6,6 +6,11 @@ enum Vault {
     private static let service = "com.primalux.caregiver"
     private static let account = "vault-key"
 
+    private static let gate = NSLock()
+    private static var storedKey: SymmetricKey?
+    private static var storedCircle: SymmetricKey?
+    private static var opened: [Data: String] = [:]
+
     static func seal(_ text: String) -> Data {
         let key = symmetricKey()
         guard let sealed = try? AES.GCM.seal(Data(text.utf8), using: key), let combined = sealed.combined else {
@@ -15,29 +20,51 @@ enum Vault {
     }
 
     static func open(_ data: Data) -> String {
+        gate.lock()
+        if let hit = opened[data] {
+            gate.unlock()
+            return hit
+        }
+        gate.unlock()
         guard !data.isEmpty, let box = try? AES.GCM.SealedBox(combined: data), let clear = try? AES.GCM.open(box, using: symmetricKey()) else {
             return ""
         }
-        return String(decoding: clear, as: UTF8.self)
+        let text = String(decoding: clear, as: UTF8.self)
+        gate.lock()
+        opened[data] = text
+        gate.unlock()
+        return text
     }
 
     static func symmetricKey() -> SymmetricKey {
+        gate.lock()
+        defer { gate.unlock() }
+        if let storedKey { return storedKey }
         if let stored = keychainRead(account) {
-            return SymmetricKey(data: stored)
+            let key = SymmetricKey(data: stored)
+            storedKey = key
+            return key
         }
         let key = SymmetricKey(size: .bits256)
         let raw = key.withUnsafeBytes { Data($0) }
         keychainWrite(account, raw)
+        storedKey = key
         return key
     }
 
     static func circleKey() -> SymmetricKey {
+        gate.lock()
+        defer { gate.unlock() }
+        if let storedCircle { return storedCircle }
         if let stored = keychainRead("circle-key") {
-            return SymmetricKey(data: stored)
+            let key = SymmetricKey(data: stored)
+            storedCircle = key
+            return key
         }
         let key = SymmetricKey(size: .bits256)
         let raw = key.withUnsafeBytes { Data($0) }
         keychainWrite("circle-key", raw)
+        storedCircle = key
         return key
     }
 

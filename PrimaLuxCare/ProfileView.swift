@@ -13,6 +13,7 @@ struct ProfileView: View {
     @AppStorage("textSize") private var textSize = "standard"
     @AppStorage("parentMode") private var parentMode = false
     @AppStorage("scanCamera") private var scanCamera = "back"
+    @AppStorage("doseCheck") private var doseCheck = "tap"
     @AppStorage("deviceName") private var deviceName = ""
     @State private var inviteRole = "family"
     @State private var inviteText = ""
@@ -80,7 +81,7 @@ struct ProfileView: View {
                                 if isParent && !member.isThisPhone {
                                     Picker("Role", selection: Binding(
                                         get: { member.role },
-                                        set: { member.role = $0; try? context.save() }
+                                        set: { member.role = $0; CareAccess.invalidate(); try? context.save() }
                                     )) {
                                         ForEach(["parent", "caregiver", "family", "viewer"], id: \.self) { Text($0.capitalized).tag($0) }
                                     }
@@ -160,6 +161,12 @@ struct ProfileView: View {
                 MetalCard(padding: 18) {
                     VStack(alignment: .leading, spacing: 16) {
                         setting("Label camera", selection: $scanCamera, options: [("back", "Back"), ("front", "Front")])
+                        setting("Dose check", selection: $doseCheck, options: [("tap", "Tap"), ("scan", "Scan")])
+                        Text(doseCheck == "scan"
+                             ? "A dose is marked only after the bottle label is scanned. Use this when the right medication needs a second check."
+                             : "A tap marks the dose taken.")
+                            .font(.caption)
+                            .foregroundStyle(palette.muted)
                         setting("Parent mode", selection: Binding(
                             get: { parentMode ? "on" : "off" },
                             set: { parentMode = $0 == "on" }

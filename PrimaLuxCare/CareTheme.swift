@@ -147,33 +147,37 @@ struct MetalButton: View {
 
 struct DoseMark: View {
     var done: Bool
-    var action: () -> Void
+    var action: (() -> Void)? = nil
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let palette = Palette.current(scheme)
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [palette.metalLight, palette.metal],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 1.5
-                    )
-                if done {
-                    Circle().fill(palette.sage).padding(3)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(palette.onSage)
-                }
+        let mark = ZStack {
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        colors: [palette.metalLight, palette.metal],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1.5
+                )
+            if done {
+                Circle().fill(palette.sage).padding(3)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(palette.onSage)
             }
-            .frame(width: 28, height: 28)
-            .frame(width: 44, height: 44)
         }
-        .buttonStyle(.plain)
+        .frame(width: 32, height: 32)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+        if let action {
+            Button(action: action) { mark }
+                .buttonStyle(.borderless)
+        } else {
+            mark
+        }
     }
 }
 

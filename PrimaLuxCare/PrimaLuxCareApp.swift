@@ -7,7 +7,6 @@ struct PrimaLuxCareApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .task { CareDatabase.seedIfNeeded() }
         }
         .modelContainer(CareDatabase.container)
     }
@@ -18,6 +17,7 @@ struct RootView: View {
     @AppStorage("textSize") private var textSize = "standard"
     @AppStorage("parentMode") private var parentMode = false
     @Environment(\.colorScheme) private var scheme
+    @State private var ready = false
 
     private var preferred: ColorScheme? {
         switch appearance {
@@ -29,23 +29,54 @@ struct RootView: View {
 
     var body: some View {
         let palette = Palette.current(scheme)
-        TabView {
-            TodayView()
-                .tabItem { Label("Calendar", systemImage: "calendar") }
-            TasksView()
-                .tabItem { Label("Tasks", systemImage: "checkmark.circle") }
-            MedsView()
-                .tabItem { Label("Meds", systemImage: "pills") }
-            UpdatesView()
-                .tabItem { Label("Updates", systemImage: "text.bubble") }
-            ProfileView()
-                .tabItem { Label("Profile", systemImage: "person") }
+        ZStack {
+            TabView {
+                TodayView()
+                    .tabItem { Label("Calendar", systemImage: "calendar") }
+                TasksView()
+                    .tabItem { Label("Tasks", systemImage: "checkmark.circle") }
+                MedsView()
+                    .tabItem { Label("Meds", systemImage: "pills") }
+                UpdatesView()
+                    .tabItem { Label("Updates", systemImage: "text.bubble") }
+                ProfileView()
+                    .tabItem { Label("Profile", systemImage: "person") }
+            }
+            .tint(palette.sage)
+            if !ready {
+                LaunchSplash()
+            }
         }
-        .tint(palette.sage)
         .preferredColorScheme(preferred)
         .modifier(TypeScale(parentMode: parentMode, textSize: textSize))
         .onAppear { styleTabs(scheme) }
         .onChange(of: scheme) { _, newScheme in styleTabs(newScheme) }
+        .task {
+            CareDatabase.seedIfNeeded()
+            ready = true
+        }
+    }
+}
+
+private struct LaunchSplash: View {
+    var body: some View {
+        ZStack {
+            Color("LaunchBackground").ignoresSafeArea()
+            VStack(spacing: 28) {
+                Image("LaunchMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 220, height: 220)
+                    .clipShape(RoundedRectangle(cornerRadius: 48, style: .continuous))
+                    .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(.white)
+                Text("Loading")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+        }
     }
 }
 

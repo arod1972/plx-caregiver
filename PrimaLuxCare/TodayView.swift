@@ -7,8 +7,10 @@ struct TodayView: View {
     @Query(sort: \CareEvent.startsAt) private var events: [CareEvent]
     @Query(sort: \Dose.timeMinutes) private var doses: [Dose]
     @AppStorage("parentMode") private var parentMode = false
+    @AppStorage("doseCheck") private var doseCheck = "tap"
     @State private var selected = Calendar.current.startOfDay(for: .now)
     @State private var adding = false
+    @State private var verifying: Dose?
 
     var body: some View {
         let palette = Palette.current(scheme)
@@ -70,6 +72,14 @@ struct TodayView: View {
             }
             .sheet(isPresented: $adding) {
                 EventEditor(day: selected)
+            }
+            .sheet(item: $verifying) { dose in
+                VerifyScan(expectedName: dose.name) {
+                    CareClock.toggleTaken(dose, on: selected)
+                    AuditLog.record(context, action: "dose.scan", resource: dose.uid.uuidString)
+                    try? context.save()
+                    verifying = nil
+                }
             }
         }
     }
@@ -135,30 +145,56 @@ struct TodayView: View {
     }
 
     private func doseRow(_ dose: Dose, palette: Palette, last: Bool) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(CareClock.label(minutes: dose.timeMinutes))
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(palette.ink)
-                .frame(width: 76, alignment: .leading)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(dose.name)
-                    .font(.headline)
+        let taken = CareClock.takenToday(dose, on: selected)
+        return Button {
+            mark(dose, taken: taken)
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                Text(CareClock.label(minutes: dose.timeMinutes))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(palette.ink)
-                Text(doseLine(dose))
-                    .font(.caption)
-                    .foregroundStyle(palette.muted)
+                    .frame(width: 76, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(dose.name)
+                        .font(.headline)
+                        .foregroundStyle(palette.ink)
+                    Text(doseLine(dose, taken: taken))
+                        .font(.caption)
+                        .foregroundStyle(palette.muted)
+                }
+                Spacer(minLength: 0)
+                if doseCheck == "scan" && !taken {
+                    Image(systemName: "camera")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(palette.sage)
+                }
+                DoseMark(done: taken)
             }
-            Spacer(minLength: 0)
-            DoseMark(done: CareClock.takenToday(dose, on: selected)) {
-                CareClock.toggleTaken(dose, on: selected)
-            }
-            .accessibilityLabel(CareClock.takenToday(dose, on: selected) ? "\(dose.name) taken" : "Mark \(dose.name) taken")
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .buttonStyle(.borderless)
+        .accessibilityLabel(taken ? "\(dose.name) taken" : "Mark \(dose.name) taken")
         .overlay(alignment: .bottom) {
             if !last { Rectangle().fill(palette.line).frame(height: 1).padding(.leading, 16) }
         }
+    }
+
+    private func mark(_ dose: Dose, taken: Bool) {
+        if taken {
+            CareClock.toggleTaken(dose, on: selected)
+            AuditLog.record(context, action: "dose.taken", resource: dose.uid.uuidString)
+            try? context.save()
+            return
+        }
+        if doseCheck == "scan" {
+            verifying = dose
+            return
+        }
+        CareClock.toggleTaken(dose, on: selected)
+        AuditLog.record(context, action: "dose.taken", resource: dose.uid.uuidString)
+        try? context.save()
     }
 
     private func eventRow(_ event: CareEvent, palette: Palette, last: Bool) -> some View {
@@ -189,8 +225,8 @@ struct TodayView: View {
         }
     }
 
-    private func doseLine(_ dose: Dose) -> String {
-        let state = CareClock.takenToday(dose, on: selected) ? "Taken" : "Not taken yet"
+    private func doseLine(_ dose: Dose, taken: Bool) -> String {
+        let state = taken ? "Taken" : (doseCheck == "scan" ? "Scan the bottle to mark" : "Not taken yet")
         if dose.dosage.isEmpty { return state }
         return "\(dose.dosage) · \(state)"
     }

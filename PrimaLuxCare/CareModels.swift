@@ -283,9 +283,18 @@ enum CareDatabase {
 }
 
 enum CareAccess {
+    private static var cachedRole: String?
+
+    static func invalidate() {
+        cachedRole = nil
+    }
+
     static func role(_ context: ModelContext) -> String {
+        if let cachedRole { return cachedRole }
         let members = (try? context.fetch(FetchDescriptor<Member>())) ?? []
-        return members.first { $0.isThisPhone }?.role ?? "parent"
+        let found = members.first { $0.isThisPhone }?.role ?? "parent"
+        cachedRole = found
+        return found
     }
 
     static func allows(_ area: String, edit: Bool, context: ModelContext) -> Bool {
@@ -354,9 +363,9 @@ enum CareClock {
 
     static func toggleTaken(_ dose: Dose, on day: Date = .now) {
         if takenToday(dose, on: day) {
-            dose.takenLog.removeAll { Calendar.current.isDate($0, inSameDayAs: day) }
+            dose.takenLog = dose.takenLog.filter { !Calendar.current.isDate($0, inSameDayAs: day) }
         } else {
-            dose.takenLog.append(day)
+            dose.takenLog = dose.takenLog + [Calendar.current.startOfDay(for: day)]
         }
         dose.updatedAt = .now
     }
