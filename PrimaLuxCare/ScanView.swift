@@ -208,3 +208,65 @@ struct ScanView: View {
         message = existing == nil ? "Added \(saved.name)." : "Updated \(saved.name)."
     }
 }
+
+struct VerifyScan: View {
+    var expectedName: String
+    var onConfirmed: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    @StateObject private var capture = LabelCapture()
+    @AppStorage("scanCamera") private var scanCamera = "back"
+    @State private var matched = false
+
+    var body: some View {
+        let palette = Palette.current(scheme)
+        let seen = capture.reading.drugName
+        let ready = !matched && namesMatch(seen, expectedName)
+        NavigationStack {
+            ZStack(alignment: .bottom) {
+                if capture.cameraOn {
+                    LabelPreview(session: capture.session, front: capture.usingFront, rotation: capture.previewRotation)
+                        .ignoresSafeArea()
+                } else {
+                    palette.canvas.ignoresSafeArea()
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(matched ? "Matched \(expectedName)." : "Hold the \(expectedName) bottle still.")
+                        .font(.headline)
+                        .foregroundStyle(palette.ink)
+                    Text(seen.isEmpty ? "Looking for the name on the label." : "Seeing \(seen).")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.muted)
+                    if ready {
+                        MetalButton(title: "Mark \(expectedName) taken") {
+                            matched = true
+                            capture.stop()
+                            onConfirmed()
+                            dismiss()
+                        }
+                    }
+                    MetalButton(title: "Cancel", filled: false) {
+                        capture.stop()
+                        dismiss()
+                    }
+                }
+                .padding(16)
+                .background(palette.canvas.opacity(0.94))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .padding(16)
+            }
+            .navigationTitle("Confirm the bottle")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear { capture.start(front: scanCamera == "front") }
+            .onDisappear { capture.stop() }
+        }
+        .tint(palette.sage)
+    }
+
+    private func namesMatch(_ seen: String, _ expected: String) -> Bool {
+        let left = seen.lowercased().trimmingCharacters(in: .whitespaces)
+        let right = expected.lowercased().trimmingCharacters(in: .whitespaces)
+        guard left.count >= 4, right.count >= 3 else { return false }
+        return left == right || left.contains(right) || right.contains(left)
+    }
+}

@@ -6,10 +6,12 @@ struct MedsView: View {
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Dose.timeMinutes) private var doses: [Dose]
     @AppStorage("parentMode") private var parentMode = false
+    @AppStorage("doseCheck") private var doseCheck = "tap"
     @State private var adding = false
     @State private var choosing = false
     @State private var scanning = false
     @State private var editing: Dose?
+    @State private var verifying: Dose?
 
     var body: some View {
         let palette = Palette.current(scheme)
@@ -79,6 +81,14 @@ struct MedsView: View {
             }
             .sheet(isPresented: $adding) { DoseEditor(dose: nil) }
             .sheet(item: $editing) { dose in DoseEditor(dose: dose) }
+            .sheet(item: $verifying) { dose in
+                VerifyScan(expectedName: dose.name) {
+                    CareClock.toggleTaken(dose)
+                    AuditLog.record(context, action: "dose.scan", resource: dose.uid.uuidString)
+                    try? context.save()
+                    verifying = nil
+                }
+            }
         }
     }
 
@@ -111,6 +121,16 @@ struct MedsView: View {
             .foregroundStyle(palette.ink)
             DoseMark(done: CareClock.takenToday(dose)) {
                 guard canEdit else { return }
+                if CareClock.takenToday(dose) {
+                    CareClock.toggleTaken(dose)
+                    AuditLog.record(context, action: "dose.taken", resource: dose.uid.uuidString)
+                    try? context.save()
+                    return
+                }
+                if doseCheck == "scan" {
+                    verifying = dose
+                    return
+                }
                 CareClock.toggleTaken(dose)
                 AuditLog.record(context, action: "dose.taken", resource: dose.uid.uuidString)
                 try? context.save()
